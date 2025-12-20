@@ -78,6 +78,10 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  if (pathname === '/' && user && userProfile && userProfile.roles && userProfile.roles.length > 0) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
   // --- STOCKAGE DES INFOS UTILISATEUR DANS LES HEADERS ---
   if (userProfile && user) {
     response.headers.set('X-User-Id', user.id);
