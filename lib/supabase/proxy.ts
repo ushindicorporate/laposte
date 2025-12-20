@@ -3,6 +3,7 @@ import {
   createServerClient,
 } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
+import { logAuthEvent } from '../logger';
 
 // Ajout d'une fonction pour récupérer les rôles et l'agence de l'utilisateur
 async function getUserProfileAndRoles(supabase: any, userId: string) {
@@ -60,18 +61,20 @@ export async function updateSession(request: NextRequest) {
 
   // 1. Routes publiques (login, etc.)
   if (pathname === '/login') {
-    if (user) { // Si déjà authentifié, rediriger vers le dashboard
+    if (user && userProfile) { // Si déjà authentifié et avec profil
+      // Log le LOGIN
+      await logAuthEvent('LOGIN', user.id, userProfile.id, { ip: getClientIp(request.headers) }); // Utilise la fonction IP
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
-    // Sinon, laisser accéder à la page de login
     return response; 
   }
 
-  // 2. Routes protégées (/dashboard/*)
   if (pathname.startsWith('/dashboard')) {
-    // Si pas d'utilisateur OU si l'utilisateur n'a pas de profil OU pas de rôles
     if (!user || !userProfile || !userProfile.roles || userProfile.roles.length === 0) {
-      // Rediriger vers la page de login
+      // Log le LOGOUT implicite ou l'échec d'accès
+      if (user) { // Si user existe mais profil/roles manquent
+         await logAuthEvent('ACCESS_DENIED_NO_PROFILE_ROLE', user.id, null, { requested_path: pathname });
+      }
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       return NextResponse.redirect(url);
@@ -91,6 +94,12 @@ export async function updateSession(request: NextRequest) {
   }
 
   return response;
+}
+
+function getClientIp(requestHeaders: Headers): string {
+  const forwardedFor = requestHeaders.get('x-forwarded-for');
+  if (forwardedFor) return forwardedFor.split(',')[0];
+  return requestHeaders.get('x-real-ip') || 'unknown';
 }
 
 // Ton matcher reste le même

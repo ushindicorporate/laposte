@@ -16,40 +16,53 @@ import UsersTable from '@/components/users/UsersTable'
 // --- Fonctions utilitaires côté serveur ---
 
 // Fonction pour récupérer les données utilisateur (profil, rôles, agence) via RPC
+// Dans getUserDataFromServer() - AJOUTE CETTE VALIDATION
 async function getUserDataFromServer(supabase: any): Promise<{ user: User; userProfile: UserProfile | null } | null> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  // Appel à la RPC pour récupérer les données enrichies
+  // Appel à la RPC
   const { data: profileDataArray, error: rpcError } = await supabase.rpc('get_user_auth_data', { user_id_param: user.id });
   
-  if (rpcError) {
-    console.error("Erreur RPC get_user_auth_data:", rpcError);
-    return { user, userProfile: null }; // Retourne l'utilisateur mais sans profil si RPC échoue
+  // VALIDATION RENFORCÉE
+  if (rpcError || !profileDataArray || !Array.isArray(profileDataArray) || profileDataArray.length === 0) {
+    console.error("Erreur RPC ou données invalides:", rpcError, profileDataArray);
+    return { user, userProfile: null };
   }
 
-  const profileData = profileDataArray?.[0]; // La RPC retourne un tableau
-
-  if (!profileData) {
-    // Si l'utilisateur existe mais n'a pas de profil ou de rôles (cas anormal)
-    return { user, userProfile: null }; 
+  const profileData = profileDataArray[0];
+  
+  // VALIDATION OBLIGATOIRE des champs requis
+  if (!profileData || typeof profileData !== 'object') {
+    console.error("Données de profil invalides:", profileData);
+    return { user, userProfile: null };
   }
   
-  const roles = profileData.roles || [];
+  // S'assurer que les rôles sont un tableau
+  const roles = Array.isArray(profileData.roles) ? profileData.roles : [];
+  
+  // S'assurer que agency est correctement formé (même si null)
   const agency = profileData.agency_name ? {
-    id: null, // L'ID de l'agence n'est pas retourné par la RPC, à ajouter si besoin
+    id: profileData.agency_id || '',
     name: profileData.agency_name,
-    city: profileData.agency_city,
-    region: profileData.agency_region
+    city: profileData.agency_city || { id: '', name: null },
+    code: profileData.agency_code || '',
+    address: profileData.agency_address || null,
+    region: profileData.agency_region || null
   } : null;
 
   return {
     user,
     userProfile: {
-      id: profileData.profile_id,
-      full_name: profileData.full_name,
+      id: profileData.profile_id || user.id, // Fallback sur user.id si manquant
+      full_name: profileData.full_name || null,
       agency: agency,
-      roles: roles
+      roles: roles,
+      phone: profileData.phone || null,
+      agency_id: profileData.agency_id || null,
+      is_active: profileData.is_active !== undefined ? profileData.is_active : true,
+      created_at: profileData.created_at || new Date().toISOString(),
+      updated_at: profileData.updated_at || null
     }
   };
 }

@@ -1,5 +1,32 @@
-// src/types/user.ts
+export interface UserProfile {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  agency_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string | null;
+  roles: string[]; // ← Ajouter les rôles
+  agency?: {
+    id: string;
+    name: string;
+    code: string;
+    address: string | null;
+    city?: {
+      id: string;
+      name: string;
+      region?: {
+        id: string;
+        name: string;
+      };
+    };
+  } | null;
+}
 
+export interface UserData {
+  user: any; // User Supabase
+  userProfile: UserProfile | null;
+}
 // Représente les données de base de Supabase Auth User
 export interface SupabaseAuthUser {
   id: string;
@@ -17,20 +44,6 @@ export interface AgencyInfo {
   name: string | null;
   city: City | null;
   region: string | null;
-}
-
-// Profil utilisateur enrichi avec agence et rôles
-export interface UserProfile {
-  id: string;
-  full_name: string | null;
-  agency: AgencyInfo | null;
-  roles: string[]; // Tableau de noms de rôles (ex: ['AGENT', 'FINANCE'])
-}
-
-// Structure globale des données utilisateur pour le contexte (client/serveur)
-export interface UserData {
-  user: SupabaseAuthUser; // L'objet utilisateur de Supabase Auth
-  userProfile: UserProfile | null; // Notre profil enrichi
 }
 
 // Type pour les données reçues par les composants clients

@@ -68,6 +68,18 @@ export default function UserCreationForm({ agencies, roles, onCreateSuccess }: U
       });
       if (userRoleError) throw new Error("Erreur assignation rôle: " + userRoleError.message);
 
+      // await logAuditEvent(
+      //   'CREATE_USER_PROFILE', // Le type d'événement
+      //   null, // Pas de target_record_id spécifique pour la création de profil
+      //   dummyUserId, // L'ID du nouveau profil créé
+      //   { 
+      //     created_by_userId: userIdFromMiddleware, // Il faut récupérer cet ID !
+      //     email: newUser.email,
+      //     full_name: newUser.full_name,
+      //     agency_id: newUser.agency_id,
+      //     role_id: parseInt(newUser.role_id),
+      //   }
+      // );
       toast.success(`Profil créé pour ${newUser.full_name} ! (Utilisateur Auth doit être créé manuellement)`);
       onCreateSuccess(); // Appeler le callback pour rafraîchir la liste
       setIsDialogOpen(false); // Ferme le modal après succès

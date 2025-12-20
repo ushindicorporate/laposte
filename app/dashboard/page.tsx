@@ -1,10 +1,13 @@
+// /app/dashboard/page.tsx - Version mise à jour
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Package, Truck, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Package, Truck, AlertTriangle, CheckCircle, MapPin, Building2, Users, BarChart3 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import Link from 'next/link'
+import { useUser } from '@/lib/hooks/useUser' // ← Importer useUser
 
 export default function DashboardHome() {
   const [stats, setStats] = useState({
@@ -14,45 +17,55 @@ export default function DashboardHome() {
     issues: 0
   })
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
   
   const router = useRouter()
   const supabase = createClient()
+  const { user, userProfile, loading: userLoading } = useUser() // ← Utiliser useUser
 
   useEffect(() => {
     async function loadStats() {
-      // Auth check
-      const { data: { user }, error } = await supabase.auth.getUser()
-      if (error || !user) {
+      // Auth check via useUser
+      if (!userLoading && !user) {
         router.push('/login')
         return
       }
-      setUser(user)
 
-      // Calcul des stats (Approche simplifiée pour le MVP)
-      // Note: En prod avec beaucoup de données, on utilise `count` SQL, pas fetch all
-      const { data: shipments } = await supabase.from('shipments').select('status')
-      
-      if (shipments) {
-        setStats({
-          total: shipments.length,
-          inTransit: shipments.filter(s => ['IN_TRANSIT', 'ARRIVED_AT_AGENCY', 'OUT_FOR_DELIVERY'].includes(s.status)).length,
-          delivered: shipments.filter(s => s.status === 'DELIVERED').length,
-          issues: shipments.filter(s => s.status === 'ISSUE').length
-        })
+      if (user) {
+        // Calcul des stats
+        const { data: shipments } = await supabase.from('shipments').select('status')
+        
+        if (shipments) {
+          setStats({
+            total: shipments.length,
+            inTransit: shipments.filter(s => ['IN_TRANSIT', 'ARRIVED_AT_AGENCY', 'OUT_FOR_DELIVERY'].includes(s.status)).length,
+            delivered: shipments.filter(s => s.status === 'DELIVERED').length,
+            issues: shipments.filter(s => s.status === 'ISSUE').length
+          })
+        }
+        setLoading(false)
       }
-      setLoading(false)
     }
-    loadStats()
-  }, [router, supabase])
+    
+    if (!userLoading) {
+      loadStats()
+    }
+  }, [router, supabase, user, userLoading])
 
-  if (loading) return <div className="p-8">Chargement du tableau de bord...</div>
+  if (userLoading || loading) return <div className="p-8">Chargement du tableau de bord...</div>
+
+  // Fonction utilitaire pour vérifier les rôles
+  const hasRole = (role: string) => {
+    return userProfile?.roles?.includes(role) || false;
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Tableau de Bord</h1>
-        <p className="text-muted-foreground">Bienvenue, {user?.email}</p>
+        <p className="text-muted-foreground">
+          Bienvenue, {userProfile?.full_name || user?.email}
+          {userProfile?.agency && ` (${userProfile.agency.name})`}
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -103,7 +116,102 @@ export default function DashboardHome() {
 
       </div>
 
-      {/* Zone Graphique ou Tableau récent (Placeholder pour Phase 2) */}
+      {/* CARTES D'ACCÈS RAPIDE AVEC RBAC */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        
+        {/* Carte Régions - visible seulement pour SUPER_ADMIN et REGIONAL_MANAGER */}
+        {(hasRole('SUPER_ADMIN') || hasRole('REGIONAL_MANAGER')) && (
+          <Link href="/dashboard/regions">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Régions</CardTitle>
+                <MapPin className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">Gérer</div>
+                <p className="text-xs text-muted-foreground">
+                  Gestion des régions postales
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        {/* Carte Villes - visible seulement pour SUPER_ADMIN et REGIONAL_MANAGER */}
+        {(hasRole('SUPER_ADMIN') || hasRole('REGIONAL_MANAGER')) && (
+          <Link href="/dashboard/cities">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Villes</CardTitle>
+                <Building2 className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">Gérer</div>
+                <p className="text-xs text-muted-foreground">
+                  Gestion des villes par région
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        {/* Carte Agences - visible seulement pour SUPER_ADMIN */}
+        {hasRole('SUPER_ADMIN') && (
+          <Link href="/dashboard/agencies">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Agences</CardTitle>
+                <Building2 className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">Gérer</div>
+                <p className="text-xs text-muted-foreground">
+                  Gestion des agences postales
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        {/* Carte Rapports - visible pour AGENCY_MANAGER et SUPER_ADMIN */}
+        {(hasRole('AGENCY_MANAGER') || hasRole('SUPER_ADMIN')) && (
+          <Link href="/dashboard/reports">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Rapports</CardTitle>
+                <BarChart3 className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">Analyser</div>
+                <p className="text-xs text-muted-foreground">
+                  Rapports et statistiques
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        {/* Carte Utilisateurs - visible seulement pour SUPER_ADMIN */}
+        {hasRole('SUPER_ADMIN') && (
+          <Link href="/dashboard/users">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Utilisateurs</CardTitle>
+                <Users className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">Gérer</div>
+                <p className="text-xs text-muted-foreground">
+                  Gestion des utilisateurs et rôles
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+      </div>
+
+      {/* Zone Graphique ou Tableau récent */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>

@@ -24,8 +24,9 @@ import { createClient } from '@/lib/supabase/client' // Client browser pour les 
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { UserData } from '@/lib/types/user'
+import { useUser } from '@/lib/hooks/useUser'
+import { logAuthEvent } from '@/lib/logger'
 
-// Définition du menu avec rôles requis
 const menuItems = [
   { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard, roles: ['AGENT', 'DRIVER', 'AGENCY_MANAGER', 'FINANCE', 'SUPER_ADMIN'] },
   { name: 'Envois & Colis', href: '/dashboard/shipments', icon: Package, roles: ['AGENT', 'AGENCY_MANAGER', 'SUPER_ADMIN'] },
@@ -33,11 +34,15 @@ const menuItems = [
   { name: 'Scanner (Mise à jour)', href: '/dashboard/tracking/scan', icon: ScanLine, roles: ['AGENT', 'DRIVER', 'AGENCY_MANAGER', 'SUPER_ADMIN'] },
   { name: 'Clients & CRM', href: '/dashboard/crm', icon: Users, roles: ['AGENT', 'AGENCY_MANAGER', 'SUPER_ADMIN'] },
   { name: 'Finance & Revenus', href: '/dashboard/finance', icon: Wallet, roles: ['FINANCE', 'SUPER_ADMIN'] },
-  { name: 'Agences', href: '/dashboard/agencies', icon: MapPin, roles: ['SUPER_ADMIN'] }, // Réservé aux admins
+  
+  // AJOUTER CES DEUX NOUVELLES LIGNES :
+  { name: 'Régions', href: '/dashboard/regions', icon: MapPin, roles: ['SUPER_ADMIN', 'REGIONAL_MANAGER'] },
+  { name: 'Villes', href: '/dashboard/cities', icon: Building2, roles: ['SUPER_ADMIN', 'REGIONAL_MANAGER'] },
+  
+  { name: 'Agences', href: '/dashboard/agencies', icon: MapPin, roles: ['SUPER_ADMIN'] },
   { name: 'Rapports', href: '/dashboard/reports', icon: BarChart3, roles: ['AGENCY_MANAGER', 'SUPER_ADMIN'] },
   { name: 'Gestion Utilisateurs', href: '/dashboard/users', icon: UserCog, roles: ['SUPER_ADMIN'] },
-  // { name: 'Paramètres', href: '/dashboard/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
-]
+];
 
 export default function DashboardLayout({
   children,
@@ -47,6 +52,7 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient() // Client browser pour logout
+  const { user, userProfile, loading } = useUser();
 
   const [userData, setUserData] = useState<UserData | null>(null)
   const [loadingUser, setLoadingUser] = useState(true)
@@ -77,6 +83,10 @@ export default function DashboardLayout({
   }, [router, supabase]);
 
   const handleLogout = async () => {
+    if (user?.id) { // Si on a bien l'ID utilisateur
+       await logAuthEvent('LOGOUT', user.id, userProfile?.id, { ip: 'getClientIpFromBrowser()' }); // On logge le logout
+       // Note: On ne peut pas avoir l'IP serveur ici facilement depuis un CC. On utilise une IP fictive ou on la récupère via une autre API.
+    }
     await supabase.auth.signOut()
     router.push('/login')
   }
