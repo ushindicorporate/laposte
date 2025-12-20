@@ -11,7 +11,8 @@ import {
   Settings, 
   LogOut, 
   Truck,
-  Menu
+  Menu,
+  ScanLine
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
@@ -23,6 +24,7 @@ const menuItems = [
   { name: 'Tableau de bord', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Envois & Colis', href: '/dashboard/shipments', icon: Package }, // Module 4.3
   { name: 'Suivi (Tracking)', href: '/dashboard/tracking', icon: Truck }, // Module 4.4
+  { name: 'Scanner (Mise à jour)', href: '/dashboard/tracking/scan', icon: ScanLine }, // Module 4.4.1
   { name: 'Agences', href: '/dashboard/agencies', icon: MapPin }, // Module 4.2
   { name: 'Clients & CRM', href: '/dashboard/crm', icon: Users }, // Module 4.5
   { name: 'Paramètres', href: '/dashboard/settings', icon: Settings },
