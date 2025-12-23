@@ -1,76 +1,41 @@
-export interface UserProfile {
+// /lib/types/user.ts
+import { Profile, Role, UserRole } from './database';
+
+export interface User {
   id: string;
-  full_name: string | null;
-  phone: string | null;
-  agency_id: string | null;
-  is_active: boolean;
+  email?: string | null;
+  phone?: string | null;
   created_at: string;
-  updated_at: string | null;
-  roles: string[]; // ← Ajouter les rôles
-  agency?: {
-    id: string;
-    name: string;
-    code: string;
-    address: string | null;
-    city?: {
-      id: string;
-      name: string;
-      region?: {
-        id: string;
-        name: string;
-      };
-    };
-  } | null;
+  last_sign_in_at?: string | null;
+  profile?: Profile | null;
+  roles: Role[];
+  user_roles?: UserRole[];
 }
 
-export interface UserData {
-  user: any; // User Supabase
-  userProfile: UserProfile | null;
+export interface UserSession {
+  user: User;
+  access_token: string;
+  expires_at: number;
 }
-// Représente les données de base de Supabase Auth User
-export interface SupabaseAuthUser {
-  id: string;
+
+export interface LoginCredentials {
   email?: string;
-  // Ajoutez d'autres propriétés si nécessaire (ex: created_at)
+  phone?: string;
+  password: string;
 }
 
-export interface City {
-    id: string;
-    name: string | null;
-}
-// Structure de l'agence enrichie par la RPC
-export interface AgencyInfo {
-  id: string | null; // Peut être null si non assigné
-  name: string | null;
-  city: City | null;
-  region: string | null;
+export interface RegisterData {
+  email?: string;
+  phone?: string;
+  password: string;
+  full_name: string;
+  agency_id?: string;
+  role_id: number;
 }
 
-// Type pour les données reçues par les composants clients
-export interface UserDataForClient {
-    user: SupabaseAuthUser | null;
-    userProfile: UserProfile | null;
-}
-
-// Types pour les données des listes (agences, rôles)
-export interface AgencyOption {
-  id: string;
-  name: string | null;
-  city: City | null;
-}
-
-export interface RoleOption {
-  id: number;
-  name: string;
-}
-
-// Type pour les données d'un utilisateur dans le tableau
-export interface UserRowData {
-  id: string;
-  full_name: string | null;
-  email: string | null;
-  agency_id: string | null;
-  agencies: AgencyInfo | null; // Correspond à AgencyInfo mais peut être null
-  user_roles: { role_id: number; roles: { id: number; name: string } | null }[] | null;
-  is_active: boolean;
+export interface UpdateProfileData {
+  full_name?: string;
+  phone?: string;
+  agency_id?: string;
+  is_active?: boolean;
 }

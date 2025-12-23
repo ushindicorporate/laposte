@@ -1,255 +1,153 @@
-'use client'
+import { Suspense } from 'react';
+import { Metadata } from 'next';
+import { CustomersTable } from '@/components/crm/CustomersTable';
+import { CustomerSearch } from '@/components/crm/CustomerSearch';
+import { CustomerStats } from '@/components/crm/CustomerStats';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Plus, Users, TrendingUp, Package } from 'lucide-react';
+import Link from 'next/link';
+import { searchCustomers, getCustomerSearchStats } from '@/actions/customers';
+import { CustomerSearchFilters } from '@/lib/types/customers';
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { Plus, Search, User, Building2, Phone, Mail } from 'lucide-react'
-import { toast } from 'sonner'
+interface CRMClientPageProps {
+  searchParams: Promise<{
+    q?: string;
+    type?: string;
+    page?: string;
+    [key: string]: string | string[] | undefined;
+  }>;
+}
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
+export const metadata: Metadata = {
+  title: 'Gestion Clients - Système Postal',
+  description: 'Gérez vos clients et prospects',
+};
 
-export default function CRMPage() {
-  const [customers, setCustomers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+export default async function CRMClientPage({ searchParams }: CRMClientPageProps) {
+  const params = await searchParams;
   
-  const supabase = createClient()
+  // Convertir les params en filtres
+  const filters: CustomerSearchFilters = {
+    query: params.q || '',
+    type: (params.type as any) || 'all',
+    page: params.page ? parseInt(params.page) : 1,
+    limit: 20,
+  };
 
-  // État du formulaire
-  const [newCustomer, setNewCustomer] = useState({
-    type: 'PARTICULIER',
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    tax_id: ''
-  })
+  // Récupérer les données
+  const [searchResult, stats] = await Promise.all([
+    searchCustomers(filters),
+    getCustomerSearchStats()
+  ]);
 
-  useEffect(() => {
-    fetchCustomers()
-  }, [])
-
-  async function fetchCustomers() {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .order('created_at', { ascending: false })
-    
-    if (data) setCustomers(data)
-    setLoading(false)
-  }
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-
-    // Récupérer l'utilisateur courant pour le champ 'created_by'
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const { error } = await supabase
-      .from('customers')
-      .insert({
-        ...newCustomer,
-        created_by: user?.id
-      })
-
-    if (error) {
-      toast.error("Erreur : " + error.message)
-    } else {
-      toast.success("Client ajouté avec succès !")
-      setIsDialogOpen(false)
-      setNewCustomer({ type: 'PARTICULIER', name: '', phone: '', email: '', address: '', tax_id: '' }) // Reset
-      fetchCustomers() // Rafraîchir
-    }
-    setSubmitting(false)
-  }
-
-  // Filtrage
-  const filteredCustomers = customers.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.phone.includes(searchTerm)
-  )
+  const handleSearch = async (searchFilters: CustomerSearchFilters) => {
+    'use server';
+    return searchCustomers(searchFilters);
+  };
 
   return (
     <div className="space-y-6">
-      
+      {/* En-tête */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Clients & CRM</h1>
-          <p className="text-muted-foreground">Base de données des expéditeurs et partenaires.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Gestion Clients</h1>
+          <p className="text-muted-foreground">
+            Gérez vos clients particuliers et entreprises
+          </p>
         </div>
         
-        {/* MODALE D'AJOUT */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-blue-700 text-white gap-2">
-              <Plus size={18} /> Nouveau Client
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <form onSubmit={handleCreate}>
-              <DialogHeader>
-                <DialogTitle>Ajouter un Client</DialogTitle>
-                <DialogDescription>
-                  Enregistrez un nouveau client pour faciliter les envois futurs.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="grid gap-4 py-4">
-                
-                {/* Type de client */}
-                <div className="grid gap-2">
-                  <Label>Type de Client</Label>
-                  <Select 
-                    value={newCustomer.type} 
-                    onValueChange={(val) => setNewCustomer({...newCustomer, type: val})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PARTICULIER">Particulier (Individu)</SelectItem>
-                      <SelectItem value="ENTREPRISE">Entreprise / Organisation</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Nom */}
-                <div className="grid gap-2">
-                  <Label>{newCustomer.type === 'ENTREPRISE' ? 'Raison Sociale' : 'Nom Complet'}</Label>
-                  <Input 
-                    placeholder={newCustomer.type === 'ENTREPRISE' ? 'Ex: SCPT Direction Générale' : 'Ex: Jean Mutombo'} 
-                    value={newCustomer.name}
-                    onChange={(e) => setNewCustomer({...newCustomer, name: e.target.value})}
-                    required 
-                  />
-                </div>
-
-                {/* Contact */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label>Téléphone</Label>
-                    <Input 
-                      placeholder="+243..." 
-                      value={newCustomer.phone}
-                      onChange={(e) => setNewCustomer({...newCustomer, phone: e.target.value})}
-                      required 
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Email (Optionnel)</Label>
-                    <Input 
-                      type="email"
-                      placeholder="client@email.com" 
-                      value={newCustomer.email}
-                      onChange={(e) => setNewCustomer({...newCustomer, email: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                {/* Adresse */}
-                <div className="grid gap-2">
-                  <Label>Adresse physique</Label>
-                  <Input 
-                    placeholder="Numéro, Avenue, Quartier..." 
-                    value={newCustomer.address}
-                    onChange={(e) => setNewCustomer({...newCustomer, address: e.target.value})}
-                  />
-                </div>
-
-                {/* Champs Spécifiques Entreprise */}
-                {newCustomer.type === 'ENTREPRISE' && (
-                  <div className="grid gap-2">
-                    <Label>ID Nat / RCCM (Fiscal)</Label>
-                    <Input 
-                      placeholder="Numéro d'identification fiscale" 
-                      value={newCustomer.tax_id}
-                      onChange={(e) => setNewCustomer({...newCustomer, tax_id: e.target.value})}
-                    />
-                  </div>
-                )}
-
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Enregistrement...' : 'Sauvegarder le client'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button asChild>
+          <Link href="/dashboard/crm/new">
+            <Plus className="h-4 w-4 mr-2" />
+            Nouveau client
+          </Link>
+        </Button>
       </div>
 
-      {/* Liste des clients */}
+      {/* Statistiques principales */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.total_customers}</div>
+            <p className="text-xs text-muted-foreground">
+              +{stats.last_30_days_new} nouveaux sur 30 jours
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Répartition</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {stats.total_particuliers} part. / {stats.total_entreprises} ent.
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Moyenne: {stats.avg_shipments_per_customer} envois/client
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Localisation</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-bold truncate">
+              {stats.top_city || 'N/A'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {stats.top_region ? `Région ${stats.top_region}` : 'Aucune région'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recherche et filtres */}
+      <Suspense fallback={<div>Chargement des filtres...</div>}>
+        <CustomerSearch 
+          onSearch={handleSearch}
+          initialFilters={filters}
+          stats={{
+            total: stats.total_customers,
+            particuliers: stats.total_particuliers,
+            entreprises: stats.total_entreprises
+          }}
+        />
+      </Suspense>
+
+      {/* Tableau des résultats */}
       <Card>
-        <CardHeader className="pb-3">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Rechercher par nom ou téléphone..."
-              className="pl-9"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Liste des clients</CardTitle>
+            <div className="text-sm text-muted-foreground">
+              {searchResult.total_count} client{searchResult.total_count !== 1 ? 's' : ''} trouvé{searchResult.total_count !== 1 ? 's' : ''}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Adresse</TableHead>
-                <TableHead>Type</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8">Chargement...</TableCell>
-                </TableRow>
-              ) : filteredCustomers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Aucun client trouvé.</TableCell>
-                </TableRow>
-              ) : filteredCustomers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    <div className="font-medium flex items-center gap-2">
-                      {customer.type === 'ENTREPRISE' ? <Building2 className="h-4 w-4 text-blue-500" /> : <User className="h-4 w-4 text-slate-500" />}
-                      {customer.name}
-                    </div>
-                    {customer.tax_id && <div className="text-xs text-muted-foreground ml-6">ID: {customer.tax_id}</div>}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col text-sm">
-                      <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {customer.phone}</span>
-                      {customer.email && <span className="flex items-center gap-1 text-muted-foreground"><Mail className="h-3 w-3" /> {customer.email}</span>}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm truncate max-w-[200px]">
-                    {customer.address || '-'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={customer.type === 'ENTREPRISE' ? 'default' : 'secondary'}>
-                      {customer.type}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <Suspense fallback={<div>Chargement des clients...</div>}>
+            <CustomersTable 
+              customers={searchResult.customers}
+              totalCount={searchResult.total_count}
+              currentPage={searchResult.page}
+              totalPages={searchResult.total_pages}
+            />
+          </Suspense>
         </CardContent>
       </Card>
+
+      {/* Section pour les statistiques détaillées */}
+      <CustomerStats stats={[]} />
     </div>
-  )
+  );
 }

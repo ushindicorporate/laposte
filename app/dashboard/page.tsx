@@ -218,7 +218,7 @@ export default function DashboardHome() {
             <CardTitle>Activité Récente</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground bg-slate-50 rounded border border-dashed">
+            <div className="h-50 flex items-center justify-center text-muted-foreground bg-slate-50 rounded border border-dashed">
               Graphique des volumes (Phase 2)
             </div>
           </CardContent>
@@ -228,7 +228,7 @@ export default function DashboardHome() {
             <CardTitle>Performance Agences</CardTitle>
           </CardHeader>
           <CardContent>
-             <div className="h-[200px] flex items-center justify-center text-muted-foreground bg-slate-50 rounded border border-dashed">
+             <div className="h-50 flex items-center justify-center text-muted-foreground bg-slate-50 rounded border border-dashed">
               Top Agences (Phase 2)
             </div>
           </CardContent>

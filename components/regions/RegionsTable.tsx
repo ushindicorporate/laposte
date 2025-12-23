@@ -51,10 +51,22 @@ export function RegionsTable({ regions }: RegionsTableProps) {
       accessorKey: "_count.cities",
       header: "Villes",
       cell: ({ row }) => {
-        const count = row.original._count?.cities || 0
+        const count = row.original._count?.cities || 0;
         return (
-          <Badge variant="secondary">{count} ville(s)</Badge>
-        )
+          <div className="flex items-center gap-2">
+            <Badge variant={count > 0 ? "default" : "secondary"}>
+              {count}
+            </Badge>
+            {count > 0 && (
+              <Link 
+                href={`/dashboard/cities?region=${row.original.id}`}
+                className="text-xs text-primary hover:underline"
+              >
+                Voir
+              </Link>
+            )}
+          </div>
+        );
       },
     },
     {
