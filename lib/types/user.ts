@@ -39,3 +39,23 @@ export interface UpdateProfileData {
   agency_id?: string;
   is_active?: boolean;
 }
+
+export interface UserData {
+  user: {
+    id: string;
+    email?: string | null;
+  };
+  userProfile: {
+    id: string;
+    full_name?: string | null;
+    roles: string[]; // NOMS NORMALISÉS (ex: 'SUPER_ADMIN')
+    agency?: {
+      id: string;
+      name: string;
+      code: string;
+      city?: {
+        name: string;
+      };
+    } | null;
+  };
+}
