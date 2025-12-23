@@ -1,208 +1,117 @@
-'use client'
+// app/tracking/page.tsx
+import { Metadata } from 'next';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { 
+  Package, Truck, Clock, Shield, 
+  MapPin, CheckCircle, Users 
+} from 'lucide-react';
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { useSearchParams } from 'next/navigation'
-import { Search, MapPin, Calendar, User, PackageCheck } from 'lucide-react'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
+export const metadata: Metadata = {
+  title: 'Suivi de Colis - Système Postal',
+  description: 'Suivez vos colis en temps réel',
+};
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-
-export default function TrackingPage() {
-  const searchParams = useSearchParams()
-  const initialQuery = searchParams.get('id') || ''
-  
-  const [trackingNumber, setTrackingNumber] = useState(initialQuery)
-  const [shipment, setShipment] = useState<any>(null)
-  const [events, setEvents] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [notFound, setNotFound] = useState(false)
-  
-  const supabase = createClient()
-
-  // Si on arrive avec un ID dans l'URL, on cherche direct
-  useEffect(() => {
-    if (initialQuery) {
-      handleSearch()
-    }
-  }, [initialQuery])
-
-  const handleSearch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    if (!trackingNumber) return
-
-    setLoading(true)
-    setNotFound(false)
-    setShipment(null)
-
-    // 1. Chercher le colis
-    const { data: shipmentData, error } = await supabase
-      .from('shipments')
-      .select(`
-        *,
-        origin:origin_agency_id(name, cities(name)),
-        destination:destination_agency_id(name, cities(name))
-      `)
-      .eq('tracking_number', trackingNumber)
-      .single()
-
-    if (error || !shipmentData) {
-      setNotFound(true)
-      setLoading(false)
-      return
-    }
-
-    setShipment(shipmentData)
-
-    // 2. Chercher l'historique
-    const { data: eventsData } = await supabase
-      .from('tracking_events')
-      .select(`
-        *,
-        agency:location_agency_id(name, cities(name)),
-        agent:scanned_by(full_name) -- On suppose que la table profiles est jointe via auth.users si configuré, sinon faudra ajuster
-      `)
-      .eq('shipment_id', shipmentData.id)
-      .order('created_at', { ascending: false })
-
-    setEvents(eventsData || [])
-    setLoading(false)
-  }
-
-  // Helper pour les couleurs de statut
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      'CREATED': 'bg-gray-500',
-      'IN_TRANSIT': 'bg-blue-500',
-      'ARRIVED_AT_AGENCY': 'bg-orange-500',
-      'OUT_FOR_DELIVERY': 'bg-purple-500',
-      'DELIVERED': 'bg-green-600',
-      'ISSUE': 'bg-red-600'
-    }
-    return <Badge className={`${styles[status] || 'bg-slate-500'} text-white`}>{status}</Badge>
-  }
-
+export default function TrackingHomePage() {
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      
-      <div className="text-center space-y-2 mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-primary">Suivi des Colis</h1>
-        <p className="text-muted-foreground">Entrez le numéro de suivi pour voir la progression.</p>
-      </div>
-
-      {/* Barre de Recherche */}
-      <Card className="border-2 border-primary/10">
-        <CardContent className="pt-6">
-          <form onSubmit={handleSearch} className="flex gap-4">
-            <Input 
-              placeholder="Ex: CD-123456-PO" 
-              className="text-lg font-mono uppercase h-12"
-              value={trackingNumber}
-              onChange={(e) => setTrackingNumber(e.target.value.toUpperCase())}
-            />
-            <Button type="submit" size="lg" className="h-12 bg-primary hover:bg-blue-700 px-8" disabled={loading}>
-              {loading ? '...' : <Search />}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Résultat : Non trouvé */}
-      {notFound && (
-        <div className="text-center p-8 bg-red-50 text-red-600 rounded-lg border border-red-100">
-          <PackageCheck className="h-12 w-12 mx-auto mb-2 opacity-50" />
-          <h3 className="font-bold">Colis introuvable</h3>
-          <p>Vérifiez le numéro de suivi et réessayez.</p>
+    <div className="min-h-screen bg-linear-to-b from-background to-muted/20">
+      <div className="container mx-auto px-4 py-12 max-w-4xl">
+        {/* Hero Section */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <Truck className="h-12 w-12 text-primary" />
+            <h1 className="text-4xl font-bold">Suivi de Colis</h1>
+            <Shield className="h-12 w-12 text-primary" />
+          </div>
+          <p className="text-xl text-muted-foreground mb-8">
+            Suivez votre colis en temps réel avec notre système de tracking
+          </p>
         </div>
-      )}
-
-      {/* Résultat : Détail du Colis */}
-      {shipment && (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          
-          {/* En-tête du Colis */}
-          <Card className="overflow-hidden">
-            <div className="bg-slate-50 dark:bg-slate-900 border-b p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-1">Numéro de suivi</p>
-                <h2 className="text-3xl font-mono font-bold text-primary">{shipment.tracking_number}</h2>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                {getStatusBadge(shipment.status)}
-                <span className="text-sm text-muted-foreground">
-                  Type: <strong>{shipment.type}</strong> • Poids: <strong>{shipment.weight_kg} kg</strong>
-                </span>
-              </div>
+        
+        {/* Formulaire de recherche */}
+        <Card className="mb-12">
+          <CardContent className="pt-8">
+            <div className="text-center mb-8">
+              <Package className="mx-auto h-16 w-16 text-primary mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Suivre un colis</h2>
+              <p className="text-muted-foreground">
+                Entrez votre numéro de suivi pour connaître le statut de votre colis
+              </p>
             </div>
             
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
-              <div className="space-y-1">
-                <h4 className="font-semibold flex items-center gap-2 text-slate-900 dark:text-white">
-                  <MapPin className="h-4 w-4 text-primary" /> Origine
-                </h4>
-                <p className="text-lg">{shipment.origin?.cities?.name}</p>
-                <p className="text-sm text-muted-foreground">{shipment.origin?.name}</p>
-                <div className="mt-2 text-sm bg-slate-100 dark:bg-slate-800 p-2 rounded">
-                  <span className="font-bold">Exp:</span> {shipment.sender_name}
-                </div>
+            <form action="/tracking" method="GET" className="max-w-md mx-auto">
+              <div className="flex gap-2">
+                <Input
+                  name="trackingNumber"
+                  placeholder="Ex: RDC240101ABC123"
+                  required
+                  className="text-center"
+                />
+                <Button type="submit" size="lg" className="gap-2">
+                  <Clock className="h-4 w-4" />
+                  Suivre
+                </Button>
               </div>
-
-              <div className="space-y-1 md:text-right">
-                <h4 className="font-semibold flex items-center gap-2 md:justify-end text-slate-900 dark:text-white">
-                  Destination <MapPin className="h-4 w-4 text-green-600" />
-                </h4>
-                <p className="text-lg">{shipment.destination?.cities?.name}</p>
-                <p className="text-sm text-muted-foreground">{shipment.destination?.name}</p>
-                <div className="mt-2 text-sm bg-slate-100 dark:bg-slate-800 p-2 rounded text-left md:text-right">
-                  <span className="font-bold">Dest:</span> {shipment.recipient_name}
-                </div>
-              </div>
+              <p className="text-sm text-muted-foreground mt-2 text-center">
+                Le numéro de suivi se trouve sur votre reçu
+              </p>
+            </form>
+          </CardContent>
+        </Card>
+        
+        {/* Features */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <MapPin className="mx-auto h-10 w-10 text-primary mb-4" />
+              <h3 className="font-bold text-lg mb-2">Suivi en Temps Réel</h3>
+              <p className="text-muted-foreground text-sm">
+                Suivez chaque étape du trajet de votre colis
+              </p>
             </CardContent>
           </Card>
-
-          {/* Timeline Verticale */}
+          
           <Card>
-            <CardHeader>
-              <CardTitle>Historique des événements</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="relative border-l-2 border-slate-200 dark:border-slate-800 ml-4 space-y-8 py-2">
-                {events.map((event, index) => (
-                  <div key={event.id} className="relative pl-8">
-                    {/* Point sur la ligne */}
-                    <span className={`absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-white dark:border-slate-950 ${index === 0 ? 'bg-primary' : 'bg-slate-300'}`}></span>
-                    
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
-                      <div>
-                        <p className="text-base font-bold text-slate-900 dark:text-white">
-                          {event.description || event.status}
-                        </p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
-                          {event.agency?.name || 'En route'} ({event.agency?.cities?.name || 'Transit'})
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium flex items-center gap-1 justify-end">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(event.created_at), 'dd MMM yyyy', { locale: fr })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(event.created_at), 'HH:mm', { locale: fr })}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <CardContent className="pt-6 text-center">
+              <CheckCircle className="mx-auto h-10 w-10 text-primary mb-4" />
+              <h3 className="font-bold text-lg mb-2">Notifications</h3>
+              <p className="text-muted-foreground text-sm">
+                Soyez informé des mises à jour importantes
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <Users className="mx-auto h-10 w-10 text-primary mb-4" />
+              <h3 className="font-bold text-lg mb-2">Support 24/7</h3>
+              <p className="text-muted-foreground text-sm">
+                Notre équipe est disponible pour vous aider
+              </p>
             </CardContent>
           </Card>
         </div>
-      )}
+        
+        {/* Information */}
+        <div className="text-center">
+          <h3 className="font-bold text-lg mb-4">Comment utiliser le suivi ?</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
+            <div>
+              <div className="font-medium mb-1">1. Trouvez votre numéro</div>
+              <p>Le numéro de suivi se trouve sur votre reçu d'envoi</p>
+            </div>
+            <div>
+              <div className="font-medium mb-1">2. Entrez le numéro</div>
+              <p>Saisissez-le dans le champ ci-dessus</p>
+            </div>
+            <div>
+              <div className="font-medium mb-1">3. Suivez votre colis</div>
+              <p>Consultez l'historique complet du trajet</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  )
+  );
 }

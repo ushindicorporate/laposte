@@ -1,16 +1,24 @@
+// components/crm/CustomerAddresses.tsx - Version mise à jour
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, Home, Truck, FileText, Globe } from 'lucide-react';
+import { MapPin, Home, Truck, FileText, Globe, Lock } from 'lucide-react';
+import { UserMaskingPermissions } from '@/lib/types/masking';
 import { CustomerAddressWithCity } from '@/lib/types/customers';
+import { SensitiveDataDisplay, SensitiveDataList } from '../masking/sensitive-data-display';
 
 interface CustomerAddressesProps {
   customerId: string;
   addresses: CustomerAddressWithCity[];
+  userPermissions: UserMaskingPermissions | null;
 }
 
-export function CustomerAddresses({ customerId, addresses }: CustomerAddressesProps) {
+export function CustomerAddresses({ 
+  customerId, 
+  addresses, 
+  userPermissions 
+}: CustomerAddressesProps) {
   const getAddressTypeIcon = (type: string) => {
     switch (type) {
       case 'PRINCIPALE':
@@ -53,22 +61,54 @@ export function CustomerAddresses({ customerId, addresses }: CustomerAddressesPr
                   <Badge variant="default">Défaut</Badge>
                 )}
                 <Badge variant="outline">{address.address_type}</Badge>
+                <Badge variant="secondary" className="gap-1">
+                  <Lock className="h-3 w-3" />
+                  Protégé
+                </Badge>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <div className="text-sm text-muted-foreground">Adresse</div>
-                <div className="font-medium">{address.address_line1}</div>
-                {address.address_line2 && (
-                  <div>{address.address_line2}</div>
-                )}
-              </div>
+            <div className="space-y-4">
+              {/* Adresse avec masquage */}
+              <SensitiveDataList
+                data={[
+                  {
+                    label: 'Adresse ligne 1',
+                    value: address.address_line1,
+                    fieldType: 'ADDRESS',
+                    fieldKey: 'customer_addresses.address_line1'
+                  },
+                  {
+                    label: 'Adresse ligne 2',
+                    value: address.address_line2,
+                    fieldType: 'ADDRESS',
+                    fieldKey: 'customer_addresses.address_line2'
+                  }
+                ]}
+                userPermissions={userPermissions}
+                customerId={customerId}
+              />
 
-              {(address.city || address.postal_code) && (
+              {/* Code postal */}
+              {address.postal_code && (
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Code postal</div>
+                  <SensitiveDataDisplay
+                    value={address.postal_code}
+                    fieldType="ADDRESS"
+                    fieldKey="customer_addresses.postal_code"
+                    userPermissions={userPermissions}
+                    customerId={customerId}
+                    className="font-medium"
+                  />
+                </div>
+              )}
+
+              {/* Localité (toujours visible) */}
+              {(address.city) && (
                 <div>
                   <div className="text-sm text-muted-foreground">Localité</div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 font-medium">
                     {address.city && (
                       <>
                         <Globe className="h-3 w-3" />
@@ -80,15 +120,11 @@ export function CustomerAddresses({ customerId, addresses }: CustomerAddressesPr
                         )}
                       </>
                     )}
-                    {address.postal_code && (
-                      <Badge variant="outline" className="ml-2">
-                        {address.postal_code}
-                      </Badge>
-                    )}
                   </div>
                 </div>
               )}
 
+              {/* Coordonnées GPS (toujours visibles) */}
               {(address.latitude && address.longitude) && (
                 <div>
                   <div className="text-sm text-muted-foreground">Coordonnées GPS</div>
@@ -98,6 +134,7 @@ export function CustomerAddresses({ customerId, addresses }: CustomerAddressesPr
                 </div>
               )}
 
+              {/* Notes (toujours visibles) */}
               {address.notes && (
                 <div>
                   <div className="text-sm text-muted-foreground">Notes</div>
