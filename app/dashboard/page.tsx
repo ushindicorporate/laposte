@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import { Package, Truck, AlertTriangle, CheckCircle, MapPin, Building2, Users, BarChart3 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
-import { useUser } from '@/lib/hooks/useUser' // ← Importer useUser
+import { useUser } from '@/lib/hooks/useUser'
 
 export default function DashboardHome() {
   const [stats, setStats] = useState({
@@ -20,7 +20,7 @@ export default function DashboardHome() {
   
   const router = useRouter()
   const supabase = createClient()
-  const { user, userProfile, loading: userLoading } = useUser() // ← Utiliser useUser
+  const { user, userProfile, loading: userLoading } = useUser()
 
   useEffect(() => {
     async function loadStats() {

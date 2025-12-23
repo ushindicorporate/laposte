@@ -10,10 +10,11 @@ export default async function RegionsPage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
+        <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold tracking-tight">Régions</h1>
-          <p className="text-muted-foreground">
-            Gérez les régions du système postal national
+          <p className="text-muted-foreground max-w-xl">
+            Les régions définissent la structure géographique du réseau postal national.
+            Elles servent de base aux villes, agences et opérations logistiques.
           </p>
         </div>
         <Link href="/dashboard/regions/new">

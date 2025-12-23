@@ -1,4 +1,3 @@
-// /components/regions/RegionForm.tsx
 'use client';
 
 import { useState } from 'react';
@@ -11,101 +10,81 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 
 interface RegionFormProps {
-  initialData?: {
-    id?: string;
-    name: string;
-    code?: string | null;
-  };
+  initialData?: RegionFormData;
   onSubmit: (data: RegionFormData) => Promise<{ success: boolean; error?: string }>;
-  onSuccess?: () => void;
+  onSuccess: () => void;
 }
 
 export function RegionForm({ initialData, onSubmit, onSuccess }: RegionFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<RegionFormData>({
+
+  const form = useForm<RegionFormData>({
     resolver: zodResolver(regionSchema),
-    defaultValues: {
-      name: initialData?.name || '',
-      code: initialData?.code || '',
-    },
+    defaultValues: initialData ?? { name: '', code: '' },
   });
-  
+
   const handleFormSubmit = async (data: RegionFormData) => {
+    if (isSubmitting) return;
+
     setIsSubmitting(true);
     setError(null);
-    
-    const result = await onSubmit(data);
-    
-    if (result.success) {
-      if (!initialData) {
-        reset(); // Réinitialiser le formulaire après création
+
+    try {
+      const result = await onSubmit(data);
+
+      if (result.success) {
+        if (!initialData) form.reset();
+        onSuccess();
+      } else {
+        setError(result.error ?? 'Une erreur est survenue');
       }
-      onSuccess?.();
-    } else {
-      setError(result.error || 'Une erreur est survenue');
+    } catch (err: any) {
+      setError(err.message ?? 'Une erreur est survenue');
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setIsSubmitting(false);
   };
-  
+
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+    <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
       {error && (
-        <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
+        <div className="rounded-md bg-destructive/15 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
-      
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="name">
-            Nom de la région *
-          </Label>
-          <Input
-            id="name"
-            {...register('name')}
-            placeholder="Ex: Kinshasa"
-            className={errors.name ? 'border-destructive' : ''}
-          />
-          {errors.name && (
-            <p className="text-sm text-destructive">{errors.name.message}</p>
-          )}
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="code">
-            Code (optionnel)
-          </Label>
-          <Input
-            id="code"
-            {...register('code')}
-            placeholder="Ex: KIN"
-            className={errors.code ? 'border-destructive' : ''}
-          />
-          {errors.code && (
-            <p className="text-sm text-destructive">{errors.code.message}</p>
-          )}
-          <p className="text-sm text-muted-foreground">
-            Code court pour identification rapide
-          </p>
-        </div>
+
+      {/* Nom */}
+      <div className="space-y-2">
+        <Label htmlFor="name">Nom de la région</Label>
+        <Input
+          id="name"
+          placeholder="Ex : Kinshasa"
+          {...form.register('name')}
+          aria-invalid={!!form.formState.errors.name}
+        />
+        {form.formState.errors.name && (
+          <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
+        )}
       </div>
-      
-      <Button type="submit" disabled={isSubmitting} className="w-full">
+
+      {/* Code */}
+      <div className="space-y-2">
+        <Label htmlFor="code">Code (optionnel)</Label>
+        <Input id="code" placeholder="Ex : KIN" {...form.register('code')} />
+        <p className="text-xs text-muted-foreground">
+          Code court utilisé pour les références internes
+        </p>
+      </div>
+
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Enregistrement...
+            Enregistrement…
           </>
         ) : initialData ? (
-          'Mettre à jour'
+          'Mettre à jour la région'
         ) : (
           'Créer la région'
         )}

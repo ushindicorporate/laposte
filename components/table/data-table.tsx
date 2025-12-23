@@ -78,7 +78,7 @@ export function DataTable<TData, TValue>({
       {/* Toolbar avec recherche et actions */}
       {showToolbar && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+          <div className="relative w-full sm:w-auto sm:min-w-75">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={placeholder}

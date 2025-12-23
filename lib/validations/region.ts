@@ -9,8 +9,20 @@ export const regionSchema = z.object({
   code: z.string()
     .min(2, 'Le code doit contenir au moins 2 caractères')
     .max(10, 'Le code ne peut pas dépasser 10 caractères')
-    .optional()
-    .or(z.literal('')),
+    .regex(/^[A-Z0-9\-]+$/i, 'Code invalide'),
 });
 
 export type RegionFormData = z.infer<typeof regionSchema>;
+
+export interface Region {
+  id: string;
+  name: string;
+  code?: string | null;
+  description?: string | null;
+  is_active?: boolean;
+}
+
+export interface RegionFormInputs {
+  name: string;
+  code?: string;
+}

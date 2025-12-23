@@ -1,4 +1,4 @@
-// /components/regions/RegionsTable.tsx - Version TanStack
+// /components/regions/RegionsTable.tsx
 'use client'
 
 import { useState } from 'react'
@@ -32,7 +32,14 @@ export function RegionsTable({ regions }: RegionsTableProps) {
       accessorKey: "name",
       header: "Nom",
       cell: ({ row }) => (
-        <div className="font-medium">{row.getValue("name")}</div>
+        <div className="flex flex-col">
+          <span className="font-medium">{row.getValue("name")}</span>
+          {row.original.code && (
+            <span className="text-xs text-muted-foreground">
+              Code : {row.original.code}
+            </span>
+          )}
+        </div>
       ),
     },
     {
