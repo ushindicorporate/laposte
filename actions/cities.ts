@@ -1,104 +1,106 @@
-'use server';
-import { createClient } from '@/lib/supabase/server';
-import { revalidatePath } from 'next/cache';
-import { logAuditEvent } from '@/actions/audit';
-import { CityFormData, citySchema } from '@/lib/validations/city';
+// actions/cities.ts
+'use server'
 
-export async function createCity(formData: FormData) {
-  const supabase = await createClient();
+import { createClient } from "@/lib/supabase/server"
+import { citySchema, CityFormData } from "@/lib/validations/cities"
+import { revalidatePath } from "next/cache"
+import { logAuditEvent } from "@/lib/logger"
 
-  try {
-    // Validation côté serveur
-    const validatedData: CityFormData = citySchema.parse({
-      name: formData.get('name'),
-      region_id: formData.get('region_id'),
-      postal_code: formData.get('postal_code') || null,
-      population: formData.get('population') ? Number(formData.get('population')) : null,
-      area_km2: formData.get('area_km2') ? Number(formData.get('area_km2')) : null,
-      timezone: formData.get('timezone') || 'Africa/Lubumbashi',
-      latitude: formData.get('latitude') ? Number(formData.get('latitude')) : null,
-      longitude: formData.get('longitude') ? Number(formData.get('longitude')) : null,
-      is_capital: formData.get('is_capital') === 'true',
-      economic_zone: formData.get('economic_zone') || null,
-      notes: formData.get('notes') || null,
-    });
-
-    const { data, error } = await supabase
-      .from('cities')
-      .insert({
-        name: validatedData.name,
-        region_id: validatedData.region_id,
-        postal_code: validatedData.postal_code,
-        population: validatedData.population,
-        area_km2: validatedData.area_km2,
-        timezone: validatedData.timezone,
-        latitude: validatedData.latitude,
-        longitude: validatedData.longitude,
-        is_capital: validatedData.is_capital,
-        economic_zone: validatedData.economic_zone,
-        notes: validatedData.notes,
-      })
-      .select(`
-        *,
-        regions (
-          id,
-          name
-        )
-      `)
-      .single();
-
-    if (error) throw error;
-
-    // Audit log
-    await logAuditEvent({
-      eventType: 'CITY_CREATED',
-      targetTable: 'cities',
-      targetRecordId: data.id,
-      details: validatedData,
-    });
-
-    // Revalidation cache
-    revalidatePath('/dashboard/cities');
-    revalidatePath('/dashboard/regions');
-
-    return { success: true, data };
-  } catch (err) {
-    console.error('Erreur création ville:', err);
-    return { success: false, error: err instanceof Error ? err.message : 'Erreur inconnue' };
-  }
-}
-
-export async function getCitiesPaginated(page = 1, pageSize = 20, filters?: {
-  regionId?: string;
-  search?: string;
-}) {
-  const supabase = await createClient();
-
-  let query = supabase
-    .from('cities')
-    .select(`*, regions(id, name)`, { count: 'exact' })
-    .order('name');
-
-  if (filters?.regionId) query = query.eq('region_id', filters.regionId);
-  if (filters?.search) query = query.ilike('name', `%${filters.search}%`);
-
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  const { data, count, error } = await query.range(from, to);
-
-  if (error) return { data: [], total: 0, pageSize };
-
-  return { data, total: count || 0, pageSize };
-}
-
-export async function getRegionsForSelect() {
-  const supabase = await createClient();
+// --- READ (Villes + Nom Région) ---
+export async function getCities() {
+  const supabase = await createClient()
+  
+  // Syntaxe Supabase pour les jointures : region:regions(name)
   const { data, error } = await supabase
+    .from('cities')
+    .select(`
+      *,
+      region:regions (
+        id,
+        name,
+        code
+      )
+    `)
+    .order('name')
+  
+  if (error) throw new Error(error.message)
+  return data
+}
+
+// --- HELPER POUR LE SELECT ---
+export async function getRegionsForSelect() {
+  const supabase = await createClient()
+  const { data } = await supabase
     .from('regions')
     .select('id, name')
-    .order('name');
+    .eq('is_active', true) // On ne crée pas de villes dans des régions archivées
+    .order('name')
+  
+  return data || []
+}
 
-  if (error) return [];
-  return data;
+// --- CREATE ---
+export async function createCity(formData: CityFormData) {
+  const supabase = await createClient()
+  
+  const validation = citySchema.safeParse(formData)
+  if (!validation.success) return { success: false, error: validation.error.format() }
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: "Non authentifié" }
+
+  const { error } = await supabase
+    .from('cities')
+    .insert({
+      name: validation.data.name,
+      region_id: validation.data.region_id,
+      postal_code: validation.data.postal_code,
+      notes: validation.data.description, // Mapping description -> notes
+      is_active: validation.data.is_active,
+      population: validation.data.population
+    })
+
+  if (error) return { success: false, error: error.message }
+
+  await logAuditEvent({
+    userId: user.id,
+    eventType: 'CREATE_CITY',
+    details: { name: validation.data.name, region: validation.data.region_id },
+    targetTable: 'cities'
+  })
+  
+  revalidatePath('/dashboard/cities')
+  return { success: true }
+}
+
+// --- UPDATE ---
+export async function updateCity(id: string, formData: CityFormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { error } = await supabase
+    .from('cities')
+    .update({
+      name: formData.name,
+      region_id: formData.region_id,
+      postal_code: formData.postal_code,
+      notes: formData.description,
+      is_active: formData.is_active,
+      population: formData.population,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', id)
+
+  if (error) return { success: false, error: error.message }
+
+  await logAuditEvent({
+    userId: user?.id,
+    eventType: 'UPDATE_CITY',
+    details: { changes: formData },
+    targetTable: 'cities',
+    targetId: id
+  })
+
+  revalidatePath('/dashboard/cities')
+  return { success: true }
 }
