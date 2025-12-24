@@ -8,6 +8,9 @@ export type AuditEventType =
   | 'LOGIN' 
   | 'LOGOUT' 
   | 'PASSWORD_RESET'
+  | 'UPDATE_ROUTE'
+  | 'CREATE_ROUTE'
+  | 'DELETE_ROUTE'
   // ORGANISATION
   | 'CREATE_REGION' | 'UPDATE_REGION'
   | 'CREATE_CITY' | 'UPDATE_CITY'

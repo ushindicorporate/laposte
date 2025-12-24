@@ -187,3 +187,12 @@
     size: auto;
   }
 }
+
+[data-radix-popper-content-wrapper] {
+  z-index: 1000 !important;
+}
+
+/* S'assure que rien ne bloque les clics sur le backdrop */
+body[style*="pointer-events: none"] {
+  pointer-events: auto !important; /* Force le réveil de l'interface en cas de bug */
+}

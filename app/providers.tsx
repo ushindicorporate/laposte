@@ -21,6 +21,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         closeButton 
         theme="system"
         className="toaster-group"
+        toastOptions={{
+          style: { zIndex: 9999 } 
+        }}
       />
     </NextThemesProvider>
   );
