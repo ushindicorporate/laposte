@@ -1,17 +1,24 @@
 // /lib/types/user.ts
+import { User } from '@supabase/supabase-js';
+import { Agency } from './agency';
 import { Profile, Role, UserRole } from './database';
 
-export interface User {
+export interface UserProfile {
   id: string;
-  email?: string | null;
-  phone?: string | null;
+  full_name: string;
+  email?: string;
+  avatar_url?: string;
+  agency_id?: string;
+  agency?: Agency; // Jointure
+  roles: string[]; // Tableau de strings (ex: ['SUPER_ADMIN', 'AGENT'])
+  is_active: boolean;
   created_at: string;
-  last_sign_in_at?: string | null;
-  profile?: Profile | null;
-  roles: Role[];
-  user_roles?: UserRole[];
 }
 
+export interface UserData {
+  user: User | null;
+  userProfile: UserProfile | null;
+}
 export interface UserSession {
   user: User;
   access_token: string;
@@ -38,24 +45,4 @@ export interface UpdateProfileData {
   phone?: string;
   agency_id?: string;
   is_active?: boolean;
-}
-
-export interface UserData {
-  user: {
-    id: string;
-    email?: string | null;
-  };
-  userProfile: {
-    id: string;
-    full_name?: string | null;
-    roles: string[]; // NOMS NORMALISÉS (ex: 'SUPER_ADMIN')
-    agency?: {
-      id: string;
-      name: string;
-      code: string;
-      city?: {
-        name: string;
-      };
-    } | null;
-  };
 }

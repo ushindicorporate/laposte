@@ -1,154 +1,94 @@
-// /actions/regions.ts
-'use server';
+// actions/regions.ts
+'use server'
 
-import { createClient } from '@/lib/supabase/server';
-import { Region } from '@/lib/validations/region';
-import { revalidatePath } from 'next/cache';
-import { logAuditEvent } from '@/actions/audit';
+import { createClient } from "@/lib/supabase/server"
+import { revalidatePath } from "next/cache"
+import { logAuditEvent } from "@/lib/logger"
+import { RegionFormData, regionSchema } from "@/lib/validations/region"
 
-// CREATE
-export async function createRegion(
-  data: {
-    name: string;
-    code?: string | null;
-  }
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  try {
-    const { error } = await supabase
-      .from('regions')
-      .insert({
-        name: data.name.trim(),
-        code: data.code || null,
-      });
-
-    if (error) {
-      if (error.code === '23505') {
-        return { success: false, error: 'Cette région existe déjà' };
-      }
-      throw error;
-    }
-
-    revalidatePath('/dashboard/regions');
-    return { success: true };
-  } catch (err) {
-    console.error('Erreur création région:', err);
-    return {
-      success: false,
-      error: 'Impossible de créer la région',
-    };
-  }
-}
-
-// READ ALL
+// --- READ ---
 export async function getRegions() {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('regions')
-    .select(`
-      id,
-      name,
-      code,
-      is_active,
-      created_at,
-      cities: cities ( count )
-    `)
-    .order('name')
-    .eq('is_active', true);
-
-  if (error) {
-    console.error('Erreur récupération régions:', error);
-    return [];
-  }
-
-  return data.map(region => ({
-    ...region,
-    _count: {
-      cities: region.cities?.[0]?.count ?? 0,
-    },
-  }));
-}
-
-
-// READ ONE
-export async function getRegionById(id: string) {
-  const supabase = await createClient();
-  
+  const supabase = await createClient()
+  // On trie par nom pour l'affichage
   const { data, error } = await supabase
     .from('regions')
     .select('*')
-    .eq('id', id)
-    .single();
+    .order('name')
   
-  if (error) {
-    console.error('Erreur récupération région:', error);
-    return null;
-  }
-  
-  return data as Region;
+  if (error) throw new Error(error.message)
+  return data
 }
 
-// Update
-export async function updateRegion(id: string, data: Pick<Region, 'name' | 'code'>): Promise<void> {
-  const supabase = await createClient();
+// --- CREATE ---
+export async function createRegion(formData: RegionFormData) {
+  const supabase = await createClient()
+  
+  // 1. Validation Zod Côté Serveur (Sécurité)
+  const validation = regionSchema.safeParse(formData)
+  if (!validation.success) {
+    return { success: false, error: validation.error.format() }
+  }
 
+  // 2. Auth Check (On récupère l'user pour le log)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: "Non authentifié" }
+
+  // 3. Insertion
+  const { data, error } = await supabase
+    .from('regions')
+    .insert({
+      name: validation.data.name,
+      code: validation.data.code,
+      description: validation.data.description,
+      is_active: validation.data.is_active
+    })
+    .select()
+    .single()
+
+  if (error) {
+    if (error.code === '23505') return { success: false, error: "Ce code région existe déjà." }
+    return { success: false, error: error.message }
+  }
+
+  // 4. Audit & Revalidate
+  await logAuditEvent({
+    userId: user.id,
+    eventType: 'CREATE_REGION',
+    details: { name: data.name, code: data.code },
+    targetTable: 'regions',
+    targetId: data.id
+  })
+  
+  revalidatePath('/dashboard/regions')
+  return { success: true, data }
+}
+
+// --- UPDATE ---
+export async function updateRegion(id: string, formData: RegionFormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
   const { error } = await supabase
     .from('regions')
-    .update(data)
+    .update({
+      name: formData.name,
+      code: formData.code,
+      description: formData.description,
+      is_active: formData.is_active,
+      updated_at: new Date().toISOString()
+    })
     .eq('id', id)
-    .single();
 
-  if (error) {
-    console.error('Erreur mise à jour région:', error);
-    throw error;
-  }
-}
+  if (error) return { success: false, error: error.message }
 
-// DELETE
-export async function disableRegion(id: string) {
-  const supabase = await createClient();
+  await logAuditEvent({
+    userId: user?.id,
+    eventType: 'UPDATE_REGION',
+    details: { changes: formData },
+    targetTable: 'regions',
+    targetId: id
+  })
 
-  try {
-    // Vérifier si la région a des villes actives
-    const { count, error: countError } = await supabase
-      .from('cities')
-      .select('*', { count: 'exact', head: true })
-      .eq('region_id', id)
-      .eq('is_active', true);
-
-    if (countError) throw countError;
-
-    if (count && count > 0) {
-      throw new Error(
-        'Impossible de désactiver cette région : des villes actives y sont associées.'
-      );
-    }
-
-    // Désactivation (soft delete)
-    const { error } = await supabase
-      .from('regions')
-      .update({ is_active: false })
-      .eq('id', id);
-
-    if (error) throw error;
-
-    // Audit log
-    await logAuditEvent({
-      eventType: 'REGION_DISABLED',
-      targetTable: 'regions',
-      targetRecordId: id,
-    });
-
-    revalidatePath('/dashboard/regions');
-
-    return { success: true };
-  } catch (error) {
-    console.error('Erreur désactivation région:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue',
-    };
-  }
+  revalidatePath('/dashboard/regions')
+  return { success: true }
 }

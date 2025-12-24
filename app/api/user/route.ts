@@ -1,25 +1,61 @@
-import { type NextRequest, NextResponse } from 'next/server'
+// app/api/user/route.ts
+import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from 'next/server';
 
-// Cette API Route est juste un proxy pour que le composant client (layout)
-// puisse lire les headers que le middleware Supabase a ajoutés à la requête.
-export async function GET(request: NextRequest) {
-  const userId = request.headers.get('X-User-Id')
-  const userProfileJson = request.headers.get('X-User-Profile')
+export async function GET() {
+  // 1. On initialise le client Supabase Server (qui lit les cookies automatiquement)
+  const supabase = await createClient();
 
-  if (!userId) {
-    // Si pas d'ID utilisateur, c'est que la session est invalide ou inexistante.
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // 2. On récupère l'utilisateur authentifié
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ user: null, userProfile: null }, { status: 401 });
   }
 
-  let userProfile = null;
-  if (userProfileJson) {
-    try {
-      userProfile = JSON.parse(userProfileJson);
-    } catch (e) {
-      console.error("Erreur parsing X-User-Profile header:", e);
-      // On continue sans le profil si le JSON est invalide, mais on log l'erreur.
-    }
+  // 3. On récupère le profil complet avec les jointures (Rôles, Agence, Ville)
+  // Note: On utilise les relations Foreign Keys définies dans la DB
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select(`
+      *,
+      agency:agencies (
+        id,
+        name,
+        code,
+        city:cities (name)
+      ),
+      user_roles (
+        role:roles (code)
+      )
+    `)
+    .eq('id', user.id)
+    .single();
+
+  if (profileError) {
+    console.error('Error fetching profile:', profileError);
+    // On renvoie quand même le user auth, mais sans profil
+    return NextResponse.json({ user, userProfile: null });
   }
 
-  return NextResponse.json({ user: { id: userId }, userProfile })
+  // 4. Transformation des données pour le frontend
+  // La DB renvoie : user_roles: [{ role: { code: 'ADMIN' } }]
+  // Le Front veut : roles: ['ADMIN']
+  const formattedRoles = profile.user_roles
+    // @ts-ignore (Supabase types complexité)
+    ?.map((ur: any) => ur.role?.code)
+    .filter(Boolean) || [];
+
+  // On construit l'objet userProfile propre
+  const userProfile = {
+    ...profile,
+    roles: formattedRoles,
+    // On nettoie l'objet user_roles brut qui ne sert plus
+    user_roles: undefined 
+  };
+
+  return NextResponse.json({
+    user,
+    userProfile
+  });
 }

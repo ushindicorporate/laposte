@@ -1,74 +1,77 @@
+// lib/logger.ts
+import { createClient } from '@/lib/supabase/server';
+import { headers } from 'next/headers';
 
+// Liste stricte des événements possibles pour standardiser le reporting
+export type AuditEventType = 
+  // AUTH
+  | 'LOGIN' 
+  | 'LOGOUT' 
+  | 'PASSWORD_RESET'
+  // ORGANISATION
+  | 'CREATE_REGION' | 'UPDATE_REGION'
+  | 'CREATE_CITY' | 'UPDATE_CITY'
+  | 'CREATE_AGENCY' | 'UPDATE_AGENCY'
+  // OPÉRATIONS COLIS
+  | 'CREATE_SHIPMENT' 
+  | 'UPDATE_SHIPMENT_STATUS'
+  | 'PRINT_LABEL'
+  // SÉCURITÉ
+  | 'VIEW_SENSITIVE_DATA' 
+  | 'CHANGE_USER_ROLE'
+  | 'SYSTEM_ERROR';
 
-// --- Configuration Globale ---
-// Si tu veux logger depuis un Server Component, il faudrait une autre fonction qui utilise le client Supabase serveur
-// et appelle directement l'API Route ou la RPC. Pour le moment, ces fonctions sont pour le Client Component.
+interface LogParams {
+  userId?: string;
+  userProfileId?: string; // Optionnel, si dispo dans le contexte
+  eventType: AuditEventType;
+  details: Record<string, any>;
+  targetTable?: string;
+  targetId?: string;
+}
 
-// Fonction pour logger des événements généraux (CREATE, UPDATE, DELETE, etc.)
-export const logAuditEvent = async (
-  event_type: string, // Ex: 'CREATE_SHIPMENT', 'UPDATE_PROFILE', 'DELETE_AGENCY'
-  target_record_id: string | null, // L'ID de l'enregistrement affecté (colis, utilisateur, etc.)
-  actor_profile_id: string | null, // L'ID du profil de celui qui effectue l'action (admin, agent)
-  details: Record<string, any> = {} // Détails de l'action (ex: anciennes/nouvelles valeurs)
-) => {
+/**
+ * Enregistre une action critique dans la base de données.
+ * Ne jette jamais d'erreur pour ne pas bloquer le flux métier (fail-safe).
+ */
+export async function logAuditEvent({
+  userId,
+  userProfileId,
+  eventType,
+  details,
+  targetTable,
+  targetId
+}: LogParams) {
   try {
-    // On ne peut pas logguer l'IP/UserAgent côté client directement pour le logger, 
-    // car l'API Route le fera côté serveur. On peut passer l'ID utilisateur si disponible.
-    const logData = {
-      event_type,
-      target_record_id,
-      user_profile_id: actor_profile_id, // Qui a initié l'action
-      user_id: details.created_by_userId || details.updated_by_userId || null, // ID Auth si disponible dans les détails
-      details,
-    };
+    const supabase = await createClient();
+    const headersList = await headers();
+    
+    // Récupération sécurisée de l'IP (derrière proxy/Vercel/Cloudflare)
+    const forwardedFor = headersList.get('x-forwarded-for');
+    const ip = forwardedFor ? forwardedFor.split(',')[0] : 'unknown';
+    const userAgent = headersList.get('user-agent') || 'unknown';
 
-    const response = await fetch('/api/audit/log', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        // IMPORTANT: Transmettre l'ID utilisateur si possible depuis le contexte client
-        // Pour le moment, l'API Route récupère l'utilisateur via le cookie de session.
-      },
-      body: JSON.stringify(logData),
-    });
+    // Si userProfileId n'est pas fourni mais qu'on a userId, on suppose souvent que c'est le même ID
+    // dans une architecture Supabase standard (profiles.id = auth.users.id)
+    const finalProfileId = userProfileId || userId;
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Échec du log d'audit pour l'événement:", event_type, errorData);
-      // On ne toast pas ici pour ne pas surcharger l'UI avec des erreurs de logs secondaires.
-    }
-  } catch (error) {
-    console.error("Erreur réseau lors du log d'audit:", error);
-  }
-};
-
-// Fonction pour logger les événements d'authentification (LOGIN, LOGOUT, ACCESS_DENIED)
-export const logAuthEvent = async (
-  event_type: string, // Ex: 'LOGIN', 'LOGOUT', 'ACCESS_DENIED'
-  userId: string | null, // ID Supabase Auth de l'utilisateur
-  userProfileId: string | undefined | null, // ID du profil de l'utilisateur
-  details: Record<string, any> = {} // Détails (ex: requested_path, ip)
-) => {
-  try {
-    const logData = {
-      event_type,
-      target_record_id: null, // Pas de cible spécifique pour les événements auth
-      user_profile_id: userProfileId,
+    const { error } = await supabase.from('audit_logs').insert({
       user_id: userId,
-      details,
-    };
-
-    const response = await fetch('/api/audit/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(logData),
+      user_profile_id: finalProfileId,
+      event_type: eventType,
+      target_table: targetTable,
+      target_record_id: targetId,
+      details: details,
+      ip_address: ip,
+      user_agent: userAgent,
+      // event_timestamp est géré par défaut par la DB (now())
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Échec du log d'audit d'authentification:", event_type, errorData);
+    if (error) {
+      console.error('[AUDIT_LOG_ERROR] DB Insert Failed:', error.message);
     }
-  } catch (error) {
-    console.error("Erreur réseau lors du log d'audit d'authentification:", error);
+  } catch (err) {
+    // Filet de sécurité ultime : on log dans la console serveur si tout explose
+    console.error('[AUDIT_LOG_CRITICAL] System Error:', err);
   }
-};
+}

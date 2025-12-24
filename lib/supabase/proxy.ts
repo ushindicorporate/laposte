@@ -3,103 +3,72 @@ import {
   createServerClient,
 } from '@supabase/ssr'
 import { type NextRequest, NextResponse } from 'next/server'
-import { logAuthEvent } from '../logger';
-
-// Ajout d'une fonction pour récupérer les rôles et l'agence de l'utilisateur
-async function getUserProfileAndRoles(supabase: any, userId: string) {
-  if (!userId) return null;
-
-  const { data, error } = await supabase.rpc('get_user_auth_data', { user_id_param: userId });
-
-  if (error || !data) {
-    console.error("Erreur lors de l'appel RPC get_user_auth_data:", error);
-    return null;
-  }
-  
-  // La donnée retournée par la RPC est un tableau, même pour un seul résultat
-  const profileData = data[0]; // On prend le premier élément
-
-  if (!profileData) return null;
-
-  // La RPC retourne déjà les rôles en JSONB, donc on n'a pas besoin de mapper
-  // Il faut juste s'assurer que les clés correspondent à ce que le layout attend
-  return {
-    id: profileData.profile_id,
-    full_name: profileData.full_name,
-    agency: profileData.agency_name ? {
-      id: null, // On n'a pas retourné l'ID de l'agence dans la RPC, si besoin, il faut l'ajouter
-      name: profileData.agency_name,
-      city: profileData.agency_city,
-      region: profileData.agency_region
-    } : null,
-    roles: profileData.roles || [] // Les rôles sont déjà un array JSONB
-  };
-}
 
 export async function updateSession(request: NextRequest) {
-  let response = NextResponse.next({ request });
-  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    cookies: {
-      getAll() { return request.cookies.getAll() },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-        response = NextResponse.next({ request })
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options))
-      },
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
     },
-  });
+  })
 
-  const { data: { user } } = await supabase.auth.getUser();
-  const { pathname } = request.nextUrl;
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          // Astuce Supabase : Il faut setter les cookies sur la requête ET la réponse
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({
+            request,
+          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
 
-  let userProfile = null;
+  // 2. Vérification de l'utilisateur
+  // IMPORTANT: getUser() valide le token JWT côté serveur. C'est sûr.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const url = request.nextUrl.clone()
+
+  // 3. LOGIQUE DE PROTECTION DES ROUTES
+
+  // A. Si l'utilisateur n'est PAS connecté
+  if (!user) {
+    // Il essaie d'accéder au dashboard -> Redirection Login
+    if (request.nextUrl.pathname.startsWith('/dashboard')) {
+      url.pathname = '/login'
+      // On garde l'URL d'origine pour rediriger après login (UX Pro)
+      url.searchParams.set('next', request.nextUrl.pathname) 
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // B. Si l'utilisateur EST connecté
   if (user) {
-    userProfile = await getUserProfileAndRoles(supabase, user.id);
-  }
-
-  // --- LOGIQUE DE REDIRECTION ET DE PROTECTION ---
-
-  // 1. Routes publiques (login, etc.)
-  if (pathname === '/login') {
-    if (user && userProfile) { // Si déjà authentifié et avec profil
-      // Log le LOGIN
-      await logAuthEvent('LOGIN', user.id, userProfile.id, { ip: getClientIp(request.headers) }); // Utilise la fonction IP
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-    return response; 
-  }
-
-  if (pathname.startsWith('/dashboard')) {
-    if (!user || !userProfile || !userProfile.roles || userProfile.roles.length === 0) {
-      // Log le LOGOUT implicite ou l'échec d'accès
-      if (user) { // Si user existe mais profil/roles manquent
-         await logAuthEvent('ACCESS_DENIED_NO_PROFILE_ROLE', user.id, null, { requested_path: pathname });
-      }
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
+    // Il essaie d'aller sur Login ou Home -> Redirection Dashboard
+    if (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/') {
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
     }
   }
 
-  if (pathname === '/' && user && userProfile && userProfile.roles && userProfile.roles.length > 0) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  // C. Injection de l'ID User (léger) pour les logs serveur éventuels
+  if (user) {
+    response.headers.set('x-user-id', user.id)
   }
 
-  // --- STOCKAGE DES INFOS UTILISATEUR DANS LES HEADERS ---
-  if (userProfile && user) {
-    response.headers.set('X-User-Id', user.id);
-    response.headers.set('X-User-Profile', JSON.stringify(userProfile));
-  } else if (user) {
-     response.headers.set('X-User-Id', user.id); // Au moins l'ID
-  }
-
-  return response;
-}
-
-function getClientIp(requestHeaders: Headers): string {
-  const forwardedFor = requestHeaders.get('x-forwarded-for');
-  if (forwardedFor) return forwardedFor.split(',')[0];
-  return requestHeaders.get('x-real-ip') || 'unknown';
+  return response
 }
 
 // Ton matcher reste le même
