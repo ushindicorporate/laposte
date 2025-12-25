@@ -5,20 +5,23 @@ import { Printer, MapPin, Package, ArrowRight, Truck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { getShipmentByTracking } from "@/actions/shipments"
 import { StatusBadge } from "@/app/(dashboard)/_components/shipments/status-badge"
+import { getTrackingHistory } from "@/actions/tracking"
 
 interface PageProps {
-  params: { trackingNumber: string }
+  params: Promise<{ trackingNumber: string }>
 }
 
 export default async function ShipmentDetailPage({ params }: PageProps) {
-  const shipment = await getShipmentByTracking(params.trackingNumber)
+  const {trackingNumber} = await params;
+  const shipment = await getShipmentByTracking(trackingNumber)
 
   if (!shipment) {
     return notFound()
   }
+
+  const trackingEvents = await getTrackingHistory(shipment.id)
 
   return (
     <div className="space-y-6 pb-20">
@@ -167,20 +170,47 @@ export default async function ShipmentDetailPage({ params }: PageProps) {
             <CardContent className="px-0">
               <div className="relative border-l-2 border-muted ml-2 space-y-8 pb-10">
                 
-                {/* ÉVÉNEMENT FICTIF POUR L'INSTANT */}
-                <div className="relative pl-6">
-                  <div className="absolute -left-1.25 top-1 h-3 w-3 rounded-full bg-primary ring-4 ring-background" />
-                  <p className="text-sm font-medium">Envoi Créé</p>
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(shipment.created_at), "d MMM HH:mm", { locale: fr })}
-                  </p>
-                  <p className="text-xs mt-1 text-muted-foreground">
-                    Agence : {shipment.origin_agency?.name}
-                  </p>
-                </div>
+                {trackingEvents?.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic pl-6">Aucun événement enregistré.</p>
+                ) : (
+                    trackingEvents.map((event, index) => (
+                        <div key={event.id} className="relative pl-6 group">
+                          {/* Point Timeline */}
+                          <div className={`absolute -left-1.25 top-1 h-3 w-3 rounded-full ring-4 ring-background ${index === 0 ? 'bg-primary animate-pulse' : 'bg-muted-foreground'}`} />
+                          
+                          <div className="flex flex-col gap-1">
+                              <span className="text-sm font-medium">
+                                {/* On peut traduire les statuts ici ou utiliser un helper */}
+                                {event.status === 'CREATED' ? 'Envoi Créé' : 
+                                 event.status === 'RECEIVED' ? 'Pris en charge' :
+                                 event.status === 'IN_TRANSIT' ? 'En transit' :
+                                 event.status === 'ARRIVED' ? 'Arrivé en agence' :
+                                 event.status === 'OUT_FOR_DELIVERY' ? 'En livraison' :
+                                 event.status === 'DELIVERED' ? 'Livré' : event.status}
+                              </span>
+                              
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(event.created_at), "d MMMM 'à' HH:mm", { locale: fr })}
+                              </span>
+                              
+                              {/* Localisation */}
+                              {event.agency && (
+                                <span className="text-xs font-semibold text-primary/80">
+                                    📍 {event.agency.name}
+                                </span>
+                              )}
 
-                {/* Le vrai tracking viendra de la table tracking_events */}
-              
+                              {/* Agent (Optionnel, visible admin seulement) */}
+                              {event.scanner && (
+                                <span className="text-[10px] text-muted-foreground/50">
+                                    Par : {event.scanner.full_name}
+                                </span>
+                              )}
+                          </div>
+                        </div>
+                    ))
+                )}
+
               </div>
             </CardContent>
           </Card>

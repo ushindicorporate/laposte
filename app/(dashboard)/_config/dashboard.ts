@@ -12,6 +12,7 @@ import {
   BarChart3,
   UserCog,
   type LucideIcon,
+  UserCheck,
 } from 'lucide-react'
 
 export type DashboardNavItem = {
@@ -35,6 +36,12 @@ export const dashboardConfig: DashboardNavCategory[] = [
       { name: 'Suivi (Tracking)', href: '/dashboard/tracking', icon: Truck, roles: ['AGENT', 'DRIVER', 'AGENCY_MANAGER', 'SUPER_ADMIN'] },
       { name: 'Scanner', href: '/dashboard/tracking/scan', icon: ScanLine, roles: ['AGENT', 'DRIVER', 'AGENCY_MANAGER', 'SUPER_ADMIN'] },
       { name: 'Clients & CRM', href: '/dashboard/customers', icon: Users, roles: ['AGENT', 'AGENCY_MANAGER', 'SUPER_ADMIN'] },
+      { 
+        name: 'Livraison Finale', 
+        href: '/dashboard/delivery', 
+        icon: UserCheck, // Import from lucide-react
+        roles: ['AGENT', 'DRIVER', 'AGENCY_MANAGER', 'SUPER_ADMIN'] 
+      },
     ],
   },
   {
