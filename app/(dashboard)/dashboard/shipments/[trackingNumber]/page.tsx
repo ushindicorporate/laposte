@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { Printer, MapPin, Package, ArrowRight, Truck } from "lucide-react"
+import { Printer, MapPin, Package, Truck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getShipmentByTracking } from "@/actions/shipments"
 import { StatusBadge } from "@/app/(dashboard)/_components/shipments/status-badge"
 import { getTrackingHistory } from "@/actions/tracking"
+import { ShipmentActions } from "@/app/(dashboard)/_components/shipments/shipment-actions"
 
 interface PageProps {
   params: Promise<{ trackingNumber: string }>
@@ -35,6 +36,7 @@ export default async function ShipmentDetailPage({ params }: PageProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <ShipmentActions shipment={shipment} />
           <Button variant="outline">
             <Printer className="mr-2 h-4 w-4" /> Étiquette
           </Button>
