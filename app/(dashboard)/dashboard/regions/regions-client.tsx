@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, MapPin } from "lucide-react"
 import { CustomDrawer } from "@/components/ui/custom-drawer"
-import { RegionForm } from "@/app/(dashboard)/_components/regions/region-form"
-import { RoleGate } from "../../_components/auth/role-gate"
+import { RegionForm } from "@/components/regions/region-form"
+import { RoleGate } from "../../../../components/auth/role-gate"
 
 interface RegionsClientProps {
   initialRegions: any[]

@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { DeliveryForm } from "../../_components/delivery/delivery-form"
+import { DeliveryForm } from "../../../../components/delivery/delivery-form"
 
 export const metadata: Metadata = { title: "Livraison" }
 

@@ -9,8 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, Building2 } from "lucide-react"
 import { CustomDrawer } from "@/components/ui/custom-drawer"
-import { RoleGate } from "../../_components/auth/role-gate"
-import { CityForm } from "../../_components/cities/city-form"
+import { RoleGate } from "../../../../components/auth/role-gate"
+import { CityForm } from "../../../../components/cities/city-form"
 
 interface CitiesClientProps {
   initialCities: any[]

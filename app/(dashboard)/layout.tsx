@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useUser } from '@/lib/hooks/useUser'
 import { Loader2 } from 'lucide-react'
-import { AppSidebar } from './_components/layout/app-sidebar'
+import { AppSidebar } from '../../components/layout/app-sidebar'
 import { ModeToggle } from '@/components/mode-toggle'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

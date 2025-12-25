@@ -9,7 +9,7 @@ import { getShipmentByTracking } from "@/actions/shipments"
 import { getTrackingHistory } from "@/actions/tracking"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { StatusBadge } from "@/app/(dashboard)/_components/shipments/status-badge"
+import { StatusBadge } from "@/components/shipments/status-badge"
 
 export default function TrackPage() {
   const [trackingNumber, setTrackingNumber] = useState("")

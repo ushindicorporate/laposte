@@ -8,9 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, Truck, Plane, Ship, Train, Milestone } from "lucide-react"
 import { CustomDrawer } from "@/components/ui/custom-drawer"
-import { RoleGate } from "../../_components/auth/role-gate"
-import { RouteForm } from "../../_components/routes/route-form"
-import { RouteStopsManager } from "../../_components/routes/route-stops-manager"
+import { RoleGate } from "../../../../components/auth/role-gate"
+import { RouteForm } from "../../../../components/routes/route-form"
+import { RouteStopsManager } from "../../../../components/routes/route-stops-manager"
 
 interface RoutesClientProps {
   initialRoutes: any[]

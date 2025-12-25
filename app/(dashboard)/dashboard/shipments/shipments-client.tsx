@@ -10,8 +10,8 @@ import { Search, Plus, Eye, Box, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { StatusBadge } from "../../_components/shipments/status-badge"
-import { RoleGate } from "../../_components/auth/role-gate"
+import { StatusBadge } from "../../../../components/shipments/status-badge"
+import { RoleGate } from "../../../../components/auth/role-gate"
 
 interface ShipmentsClientProps {
   initialShipments: any[]

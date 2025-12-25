@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { dashboardConfig } from '../../_config/dashboard'
+import { dashboardConfig } from '../../app/(dashboard)/_config/dashboard'
 import { UserNav } from './user-nav'
 
 interface AppSidebarProps {

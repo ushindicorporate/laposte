@@ -196,3 +196,12 @@
 body[style*="pointer-events: none"] {
   pointer-events: auto !important; /* Force le réveil de l'interface en cas de bug */
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  /* Cache le layout par défaut (Sidebar, Header) s'il englobe ta page */
+  /* Note : Comme on a créé une page spécifique sans layout complexe, ça devrait aller, 
+     mais si la sidebar apparaît, il faudra la cacher ici */
+}

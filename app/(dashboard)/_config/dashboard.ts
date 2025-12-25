@@ -13,6 +13,7 @@ import {
   UserCog,
   type LucideIcon,
   UserCheck,
+  Settings,
 } from 'lucide-react'
 
 export type DashboardNavItem = {
@@ -59,6 +60,12 @@ export const dashboardConfig: DashboardNavCategory[] = [
       { name: 'Finance & Compta', href: '/dashboard/finance', icon: Wallet, roles: ['FINANCE', 'SUPER_ADMIN'] },
       { name: 'Rapports & KPI', href: '/dashboard/reports', icon: BarChart3, roles: ['AGENCY_MANAGER', 'SUPER_ADMIN'] },
       { name: 'Utilisateurs', href: '/dashboard/users', icon: UserCog, roles: ['SUPER_ADMIN'] },
+      { 
+        name: 'Paramètres', 
+        href: '/dashboard/admin', 
+        icon: Settings, // import from lucide-react
+        roles: ['SUPER_ADMIN'] 
+      },
     ],
   },
 ]

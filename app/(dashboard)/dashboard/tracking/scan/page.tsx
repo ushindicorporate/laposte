@@ -1,7 +1,7 @@
 import { Metadata } from "next"
 import { getAuthenticatedUserWithProfile } from "@/lib/auth.server" // Ta fonction existante ou équivalent
 import { createClient } from "@/lib/supabase/server"
-import { ScanForm } from "@/app/(dashboard)/_components/tracking/scan-form"
+import { ScanForm } from "@/components/tracking/scan-form"
 
 export const metadata: Metadata = { title: "Scanner" }
 

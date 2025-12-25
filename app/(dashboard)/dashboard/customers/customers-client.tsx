@@ -8,9 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, User, Building2, MapPin } from "lucide-react"
 import { CustomDrawer } from "@/components/ui/custom-drawer"
-import { RoleGate } from "../../_components/auth/role-gate"
-import { CustomerForm } from "../../_components/customers/customer-form"
-import { AddressesManager } from "../../_components/customers/addresses-manager"
+import { RoleGate } from "../../../../components/auth/role-gate"
+import { CustomerForm } from "../../../../components/customers/customer-form"
+import { AddressesManager } from "../../../../components/customers/addresses-manager"
 
 interface CustomersClientProps {
   initialCustomers: any[]

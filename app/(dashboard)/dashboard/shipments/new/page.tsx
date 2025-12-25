@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 import { getShipmentFormData } from "@/actions/shipments"
-import { NewShipmentWizard } from "@/app/(dashboard)/_components/shipments/new-shipment-wizard"
+import { NewShipmentWizard } from "@/components/shipments/new-shipment-wizard"
 
 export const metadata: Metadata = { title: "Nouvel Envoi" }
 

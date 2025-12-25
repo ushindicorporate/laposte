@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Search, Edit, UserCog, ShieldCheck } from "lucide-react"
 import { CustomDrawer } from "@/components/ui/custom-drawer"
-import { RoleGate } from "../../_components/auth/role-gate"
-import { UserForm } from "../../_components/users/user-form"
+import { RoleGate } from "../../../../components/auth/role-gate"
+import { UserForm } from "../../../../components/users/user-form"
 
 interface UsersClientProps {
   initialUsers: any[]

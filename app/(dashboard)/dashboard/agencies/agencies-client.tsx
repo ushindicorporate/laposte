@@ -8,8 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit } from "lucide-react"
 import { CustomDrawer } from "@/components/ui/custom-drawer"
-import { AgencyForm } from "../../_components/agencies/agency-form"
-import { RoleGate } from "../../_components/auth/role-gate"
+import { AgencyForm } from "../../../../components/agencies/agency-form"
+import { RoleGate } from "../../../../components/auth/role-gate"
 
 interface AgenciesClientProps {
   initialAgencies: any[]

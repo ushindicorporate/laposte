@@ -6,9 +6,10 @@ import { Printer, MapPin, Package, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getShipmentByTracking } from "@/actions/shipments"
-import { StatusBadge } from "@/app/(dashboard)/_components/shipments/status-badge"
+import { StatusBadge } from "@/components/shipments/status-badge"
 import { getTrackingHistory } from "@/actions/tracking"
-import { ShipmentActions } from "@/app/(dashboard)/_components/shipments/shipment-actions"
+import { ShipmentActions } from "@/components/shipments/shipment-actions"
+import Link from "next/link"
 
 interface PageProps {
   params: Promise<{ trackingNumber: string }>
@@ -40,9 +41,11 @@ export default async function ShipmentDetailPage({ params }: PageProps) {
           <Button variant="outline">
             <Printer className="mr-2 h-4 w-4" /> Étiquette
           </Button>
-          <Button variant="outline">
-            <Printer className="mr-2 h-4 w-4" /> Reçu Client
-          </Button>
+            <Link href={`/dashboard/shipments/${shipment.tracking_number}/receipt`} target="_blank">
+              <Button variant="outline">
+                <Printer className="mr-2 h-4 w-4" /> Reçu Client
+              </Button>
+            </Link>
         </div>
       </div>
 
