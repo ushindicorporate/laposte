@@ -46,7 +46,7 @@ export async function createCustomer(formData: CustomerFormData) {
   
   if (existing) return { success: false, error: "Un client existe déjà avec ce numéro de téléphone." }
 
-  const { error } = await supabase.from('customers').insert({
+  const { data: newCustomer,error } = await supabase.from('customers').insert({
     ...validation.data,
     created_by: user.id
   })
@@ -61,7 +61,7 @@ export async function createCustomer(formData: CustomerFormData) {
   })
   
   revalidatePath('/dashboard/customers')
-  return { success: true }
+  return { success: true, data: newCustomer }
 }
 
 // --- UPDATE ---

@@ -1,4 +1,3 @@
-// components/customers/customer-form.tsx
 'use client'
 
 import { useForm } from "react-hook-form"
@@ -6,19 +5,18 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2, Bug } from "lucide-react" // J'ajoute une icône de debug
 
 import { CustomerFormData, customerSchema, CUSTOMER_TYPES } from "@/lib/validations/customers"
 import { createCustomer, updateCustomer } from "@/actions/customers"
 
 interface CustomerFormProps {
   initialData?: any 
-  onSuccess: () => void
+  onSuccess: (newCustomer?: any) => void
   onCancel: () => void
 }
 
@@ -38,17 +36,27 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
     }
   })
 
-  // Watch le type pour conditionner l'affichage
+  // Watch pour UI
   const type = form.watch("type")
   const isCorporate = type !== 'INDIVIDUAL'
 
+  // Afficher les erreurs en temps réel dans la console (Debug)
+  console.log("État du formulaire (Erreurs):", form.formState.errors)
+
   useEffect(() => {
     if (initialData) {
-      form.reset(initialData)
+      form.reset({
+        ...initialData,
+        // S'assurer que les champs optionnels ne sont pas null
+        email: initialData.email || "",
+        tax_id: initialData.tax_id || "",
+        address: initialData.address || ""
+      })
     }
   }, [initialData, form])
 
   const onSubmit = async (data: CustomerFormData) => {
+    console.log("SOUMISSION EN COURS...", data) // Tu dois voir ça
     setLoading(true)
     try {
       let result
@@ -58,33 +66,41 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
         result = await createCustomer(data)
       }
 
+      console.log("RÉSULTAT SERVEUR:", result) // Tu dois voir ça
+
       if (result.success) {
-        toast.success("Client enregistré")
-        onSuccess()
+        toast.success(initialData ? "Client modifié" : "Client créé")
+        // @ts-ignore
+        onSuccess(result.data) 
       } else {
-        // Gestion propre des erreurs Zod imbriquées
-        const msg = typeof result.error === 'string' 
-            ? result.error 
-            : "Vérifiez les champs (ex: Téléphone déjà utilisé)"
-        toast.error(msg)
+        toast.error(typeof result.error === 'string' ? result.error : "Erreur serveur")
       }
     } catch (e) {
+      console.error(e)
       toast.error("Erreur système")
     } finally {
       setLoading(false)
     }
   }
 
+  // Fonction de débogage manuel
+  const handleDebug = () => {
+    const values = form.getValues();
+    const errors = form.formState.errors;
+    alert(`Valeurs: ${JSON.stringify(values, null, 2)}\n\nErreurs: ${JSON.stringify(errors, null, 2)}`);
+  }
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit, (err) => console.error("Erreur Validation:", err))} className="space-y-6">
         
+        {/* ... CHAMPS (TYPE, NOM, PHONE) ... */}
         <FormField
           control={form.control}
           name="type"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Type de Client</FormLabel>
+              <FormLabel>Type</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                 <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                 <SelectContent>
@@ -103,7 +119,7 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
                 render={({ field }) => (
                 <FormItem>
                     <FormLabel>{isCorporate ? "Raison Sociale *" : "Nom Complet *"}</FormLabel>
-                    <FormControl><Input placeholder={isCorporate ? "SARL..." : "Jean..."} {...field} /></FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                     <FormMessage />
                 </FormItem>
                 )}
@@ -121,7 +137,7 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
             />
         </div>
 
-        {/* Champ conditionnel pour Entreprises */}
+        {/* ... AUTRES CHAMPS (TAX_ID, EMAIL, ADDRESS) ... */}
         {isCorporate && (
             <FormField
                 control={form.control}
@@ -129,8 +145,7 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
                 render={({ field }) => (
                 <FormItem className="bg-muted/30 p-3 rounded-md border border-dashed">
                     <FormLabel>RCCM / ID. Nat *</FormLabel>
-                    <FormControl><Input placeholder="CD/KIN/RCCM/..." {...field} value={field.value || ''} /></FormControl>
-                    <FormDescription>Obligatoire pour la facturation entreprise.</FormDescription>
+                    <FormControl><Input {...field} value={field.value || ''} /></FormControl>
                     <FormMessage />
                 </FormItem>
                 )}
@@ -143,7 +158,7 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
             render={({ field }) => (
             <FormItem>
                 <FormLabel>Email</FormLabel>
-                <FormControl><Input placeholder="contact@..." {...field} value={field.value || ''} /></FormControl>
+                <FormControl><Input {...field} value={field.value || ''} /></FormControl>
                 <FormMessage />
             </FormItem>
             )}
@@ -154,18 +169,24 @@ export function CustomerForm({ initialData, onSuccess, onCancel }: CustomerFormP
             name="address"
             render={({ field }) => (
             <FormItem>
-                <FormLabel>Adresse (Rapide)</FormLabel>
-                <FormControl><Textarea placeholder="Adresse physique..." {...field} value={field.value || ''} /></FormControl>
-                <FormDescription>Utilisez le module Adresses pour gérer plusieurs lieux.</FormDescription>
+                <FormLabel>Adresse</FormLabel>
+                <FormControl><Textarea {...field} value={field.value || ''} /></FormControl>
                 <FormMessage />
             </FormItem>
             )}
         />
 
-        <div className="flex justify-end gap-3 pt-4 border-t mt-6">
+        <div className="flex justify-end gap-3 pt-4 border-t mt-6 items-center">
+          
+          {/* BOUTON DEBUG (À retirer en prod) */}
+          <Button type="button" variant="ghost" size="icon" onClick={handleDebug} title="Voir les erreurs">
+            <Bug className="h-4 w-4 text-orange-500" />
+          </Button>
+
           <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
             Annuler
           </Button>
+          
           <Button type="submit" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {initialData ? "Modifier" : "Créer"}

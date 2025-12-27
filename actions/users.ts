@@ -2,9 +2,21 @@
 'use server'
 
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
 import { logAuditEvent } from "@/lib/logger"
 import { UserFormData, userSchema } from "@/lib/validations/users"
+
+const supabaseAdmin = createAdminClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+)
 
 // --- READ ---
 export async function getUsers() {
@@ -100,4 +112,75 @@ export async function getAgenciesForSelect() {
     id: a.id,
     name: `${a.name} (${a.code})`
   }))
+}
+
+// --- CREATE USER (Nouveau) ---
+export async function createUser(formData: UserFormData) {
+  const supabase = await createClient()
+  
+  // 1. Validation
+  const validation = userSchema.safeParse(formData)
+  if (!validation.success) return { success: false, error: validation.error.format() }
+  const data = validation.data
+
+  // 2. Vérification Permissions (Celui qui demande)
+  const { data: { user: requester } } = await supabase.auth.getUser()
+  if (!requester) return { success: false, error: "Non authentifié" }
+
+  // 3. Création Compte Auth (Via Admin Client)
+  if (!data.password) return { success: false, error: "Mot de passe requis pour la création" }
+
+  const { data: newUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    email: data.email,
+    password: data.password,
+    email_confirm: true, // On valide direct l'email
+    user_metadata: { full_name: data.full_name }
+  })
+  
+  if (authError) return { success: false, error: "Erreur Auth: " + authError.message }
+  if (!newUser.user) return { success: false, error: "Erreur création utilisateur" }
+
+  const userId = newUser.user.id
+
+  // 4. Mise à jour du Profil (Créé automatiquement par Trigger habituellement, mais on force l'update)
+  // On attend un peu que le trigger se déclenche ou on upsert
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .upsert({
+      id: userId,
+      full_name: data.full_name,
+      agency_id: data.agency_id || null,
+      email: data.email,
+      is_active: data.is_active
+    })
+
+  if (profileError) return { success: false, error: "Erreur Profil: " + profileError.message }
+
+  // 5. Attribution Rôle
+  // A. Trouver l'ID du rôle
+  const { data: roleData } = await supabase
+    .from('roles')
+    .select('id')
+    .eq('code', data.role)
+    .single()
+  
+  if (roleData) {
+    await supabaseAdmin.from('user_roles').insert({
+      user_id: userId,
+      role_id: roleData.id,
+      assigned_by: requester.id
+    })
+  }
+
+  // 6. Audit
+  await logAuditEvent({
+    userId: requester.id,
+    eventType: 'CREATE_USER', // Ajoute ce type si manquant dans logger.ts
+    details: { email: data.email, role: data.role },
+    targetTable: 'users',
+    targetId: userId
+  })
+
+  revalidatePath('/dashboard/users')
+  return { success: true }
 }

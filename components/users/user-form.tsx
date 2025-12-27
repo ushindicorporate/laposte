@@ -17,7 +17,7 @@ import { useState, useEffect } from "react"
 import { Loader2 } from "lucide-react"
 
 import { UserFormData, userSchema, USER_ROLES_OPTIONS } from "@/lib/validations/users"
-import { updateUser } from "@/actions/users"
+import { createUser, updateUser } from "@/actions/users"
 import { SearchableSelect } from "@/components/ui/searchable-select"
 
 interface UserFormProps {
@@ -29,11 +29,7 @@ interface UserFormProps {
 
 export function UserForm({ initialData, agencies, onSuccess, onCancel }: UserFormProps) {
   const [loading, setLoading] = useState(false)
-
-  // Préparation options agences
   const agencyOptions = agencies.map(a => ({ label: a.name, value: a.id }))
-
-  // Extraction du rôle principal actuel (si existe)
   const currentRole = initialData?.user_roles?.[0]?.role?.code || 'AGENT'
 
   const form = useForm({
@@ -51,9 +47,8 @@ export function UserForm({ initialData, agencies, onSuccess, onCancel }: UserFor
     if (initialData) {
       form.reset({
         full_name: initialData.full_name || "",
-        // On va chercher l'email via auth, mais ici on affiche souvent just le nom si l'email n'est pas dans profiles
-        // (Note: Idéalement il faut une vue SQL qui joint auth.users, mais on fera simple ici)
-        email: initialData.email || "Non visible", 
+        email: initialData.email || "",
+        password: "", // Pas de mot de passe en édition
         role: currentRole,
         agency_id: initialData.agency_id || "",
         is_active: initialData.is_active ?? true
@@ -64,14 +59,21 @@ export function UserForm({ initialData, agencies, onSuccess, onCancel }: UserFor
   const onSubmit = async (data: UserFormData) => {
     setLoading(true)
     try {
-      // On ne fait que de l'update ici (la création se fait par Auth)
-      const result = await updateUser(initialData.id, data)
+      let result
+      if (initialData?.id) {
+        // En édition, on ignore le mot de passe pour l'instant
+        // (Pour changer le mdp, il faudrait une route dédiée ou utiliser Supabase Reset)
+        const { password, ...updateData } = data
+        result = await updateUser(initialData.id, updateData as any)
+      } else {
+        result = await createUser(data)
+      }
 
       if (result.success) {
-        toast.success("Profil utilisateur mis à jour")
+        toast.success(initialData ? "Utilisateur mis à jour" : "Utilisateur créé")
         onSuccess()
       } else {
-        toast.error(typeof result.error === 'string' ? result.error : "Erreur de validation")
+        toast.error(typeof result.error === 'string' ? result.error : "Erreur validation")
       }
     } catch (e) {
       toast.error("Erreur système")
@@ -83,17 +85,42 @@ export function UserForm({ initialData, agencies, onSuccess, onCancel }: UserFor
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        
         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email (Lecture seule)</FormLabel>
-              <FormControl><Input {...field} disabled className="bg-muted" /></FormControl>
+              <FormLabel>Email *</FormLabel>
+              <FormControl>
+                <Input 
+                    {...field} 
+                    type="email" 
+                    placeholder="agent@poste.cd"
+                    disabled={!!initialData} // Bloqué en mode édition
+                />
+              </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
+
+        {/* Mot de passe (Visible seulement en création) */}
+        {!initialData && (
+            <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Mot de passe provisoire *</FormLabel>
+                <FormControl>
+                    <Input {...field} type="password" placeholder="••••••••" />
+                </FormControl>
+                <FormDescription>Min. 6 caractères.</FormDescription>
+                <FormMessage />
+                </FormItem>
+            )}
+            />
+        )}
 
         <FormField
           control={form.control}

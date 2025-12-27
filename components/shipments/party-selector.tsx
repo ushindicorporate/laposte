@@ -5,11 +5,10 @@ import { useFormContext } from "react-hook-form" // On utilise le contexte du fo
 import { Search, User, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { getCustomers } from "@/actions/customers" // On réutilise ton action existante
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { toast } from "sonner"
+import { QuickCreateDialog } from "../customers/quick-create-dialog"
 
 interface PartySelectorProps {
   type: "sender" | "recipient"
@@ -58,6 +57,11 @@ export function PartySelector({ type, label }: PartySelectorProps) {
     setValue(`${type}.email`, "")
   }
 
+  const handleQuickCreate = (customer: any) => {
+    selectCustomer(customer) // Remplit automatiquement les champs
+    toast.info(`Client ${customer.name} sélectionné`)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -73,8 +77,8 @@ export function PartySelector({ type, label }: PartySelectorProps) {
 
       {/* BARRE DE RECHERCHE CRM */}
       {!selectedCustomerId && (
-        <div className="relative">
-            <div className="relative">
+        <div className="flex gap-2 items-center">
+            <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input 
                     placeholder="Rechercher client existant (Nom, Tél)..." 
@@ -99,6 +103,7 @@ export function PartySelector({ type, label }: PartySelectorProps) {
                     ))}
                 </div>
             )}
+            <QuickCreateDialog onCustomerCreated={handleQuickCreate} />
         </div>
       )}
 

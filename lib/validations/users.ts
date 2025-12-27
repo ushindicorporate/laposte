@@ -3,8 +3,9 @@ import * as z from "zod"
 
 export const userSchema = z.object({
   full_name: z.string().min(2, "Le nom est requis"),
-  email: z.string().email().readonly(), // L'email ne change pas ici
-  agency_id: z.string().nullable().optional(), // Peut être null pour un Super Admin
+  email: z.string().email().readonly(),
+  password: z.string().min(6, "Minimum 6 caractères").optional(),
+  agency_id: z.string().nullable().optional(),
   role: z.enum(['SUPER_ADMIN', 'REGIONAL_MANAGER', 'AGENCY_MANAGER', 'AGENT', 'DRIVER', 'FINANCE'], {
     message: "Le rôle est obligatoire",
   }),
